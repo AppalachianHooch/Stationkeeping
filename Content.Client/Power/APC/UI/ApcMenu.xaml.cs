@@ -6,7 +6,9 @@ using System;
 using System.Numerics;
 using Content.Client.Stylesheets;
 using Content.Shared.APC;
+using Content.Shared.Power.Components;
 using Robust.Client.Graphics;
+using Robust.Client.UserInterface.Controls;
 using FancyWindow = Content.Client.UserInterface.Controls.FancyWindow;
 
 namespace Content.Client.Power.APC.UI
@@ -15,6 +17,7 @@ namespace Content.Client.Power.APC.UI
     public sealed partial class ApcMenu : FancyWindow
     {
         public event Action? OnBreaker;
+        public event Action<ApcPowerPriority, ApcPowerPriorityOverride>? OnTierOverride;
 
         public ApcMenu()
         {
@@ -74,6 +77,52 @@ namespace Content.Client.Power.APC.UI
                 UpdateChargeBarColor(castState.Charge);
                 var chargePercentage = (castState.Charge / ChargeBar.MaxValue);
                 ChargePercentage.Text = Loc.GetString("apc-menu-charge-label",("percent",  chargePercentage.ToString("P0")));
+            }
+
+            UpdateTierRows(castState);
+        }
+
+        private void UpdateTierRows(ApcBoundInterfaceState state)
+        {
+            TierContainer.RemoveAllChildren();
+
+            TierContainer.AddChild(new Label
+            {
+                Text = "Load tiers",
+                StyleClasses = { "LabelHeading" },
+            });
+
+            var header = new GridContainer { Columns = 5, HorizontalExpand = true };
+            header.AddChild(new Label { Text = "Tier", MinWidth = 90 });
+            header.AddChild(new Label { Text = "Req W", MinWidth = 64 });
+            header.AddChild(new Label { Text = "Eff W", MinWidth = 64 });
+            header.AddChild(new Label { Text = "State", MinWidth = 78 });
+            header.AddChild(new Label { Text = "Override", MinWidth = 140 });
+            TierContainer.AddChild(header);
+
+            foreach (var tier in state.Tiers)
+            {
+                var row = new GridContainer { Columns = 5, HorizontalExpand = true };
+                row.AddChild(new Label { Text = tier.Priority.ToString(), MinWidth = 90 });
+                row.AddChild(new Label { Text = MathF.Ceiling(tier.RequestedPower).ToString(), MinWidth = 64 });
+                row.AddChild(new Label { Text = MathF.Ceiling(tier.EffectivePower).ToString(), MinWidth = 64 });
+                row.AddChild(new Label { Text = $"{tier.State} {tier.ShedRatio:P0}", MinWidth = 78 });
+
+                var overrideButton = new OptionButton { MinWidth = 140 };
+                overrideButton.AddItem("Auto", (int) ApcPowerPriorityOverride.Auto);
+                overrideButton.AddItem("Force On", (int) ApcPowerPriorityOverride.ForceOn);
+                overrideButton.AddItem("Force Off", (int) ApcPowerPriorityOverride.ForceOff);
+                overrideButton.SelectId((int) tier.Override);
+                var priority = tier.Priority;
+                overrideButton.OnItemSelected += args =>
+                {
+                    var selected = (ApcPowerPriorityOverride) args.Id;
+                    overrideButton.SelectId(args.Id);
+                    OnTierOverride?.Invoke(priority, selected);
+                };
+                row.AddChild(overrideButton);
+
+                TierContainer.AddChild(row);
             }
         }
 

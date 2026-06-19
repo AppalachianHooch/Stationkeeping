@@ -1,6 +1,7 @@
 using Content.Client.Power.APC.UI;
 using Content.Shared.Access.Systems;
 using Content.Shared.APC;
+using Content.Shared.Power.Components;
 using JetBrains.Annotations;
 using Robust.Client.UserInterface;
 using Robust.Shared.Player;
@@ -23,6 +24,7 @@ namespace Content.Client.Power.APC
             _menu = this.CreateWindow<ApcMenu>();
             _menu.SetEntity(Owner);
             _menu.OnBreaker += BreakerPressed;
+            _menu.OnTierOverride += TierOverridePressed;
 
             var hasAccess = false;
             if (PlayerManager.LocalEntity != null)
@@ -44,6 +46,11 @@ namespace Content.Client.Power.APC
         public void BreakerPressed()
         {
             SendMessage(new ApcToggleMainBreakerMessage());
+        }
+
+        public void TierOverridePressed(ApcPowerPriority priority, ApcPowerPriorityOverride priorityOverride)
+        {
+            SendMessage(new ApcSetTierOverrideMessage(priority, priorityOverride));
         }
     }
 }
