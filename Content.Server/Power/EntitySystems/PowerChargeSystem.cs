@@ -114,18 +114,9 @@ public sealed partial class PowerChargeSystem : EntitySystem
             float chargeRate;
             if (chargingMachine.SwitchedOn)
             {
-                if (powerReceiver.Powered)
-                {
-                    chargeRate = chargingMachine.ChargeRate;
-                }
-                else
-                {
-                    // Scale discharge rate such that if we're at 25% active power we discharge at 75% rate.
-                    var receiving = powerReceiver.PowerReceived;
-                    var mainSystemPower = Math.Max(0, receiving - chargingMachine.IdlePowerUse);
-                    var ratio = 1 - mainSystemPower / (chargingMachine.ActivePowerUse - chargingMachine.IdlePowerUse);
-                    chargeRate = -(ratio * chargingMachine.ChargeRate);
-                }
+                // SupplyRatio is already clamped to 0..1; full supply charges, no supply discharges.
+                var ratio = powerReceiver.SupplyRatio;
+                chargeRate = chargingMachine.ChargeRate * (ratio * 2f - 1f);
             }
             else
             {

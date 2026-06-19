@@ -290,9 +290,16 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
         switch (lightBulb.State)
         {
             case LightBulbState.Normal:
-                if (powerReceiver.Powered && light.On)
+                var supplyRatio = powerReceiver.SupplyRatio;
+                if (light.On && supplyRatio > 0f)
                 {
-                    SetLight(uid, true, lightBulb.Color, light, lightBulb.LightRadius, lightBulb.LightEnergy, lightBulb.LightSoftness);
+                    SetLight(uid,
+                        true,
+                        lightBulb.Color,
+                        light,
+                        lightBulb.LightRadius,
+                        lightBulb.LightEnergy * supplyRatio,
+                        lightBulb.LightSoftness);
                     _appearance.SetData(uid, PoweredLightVisuals.BulbState, PoweredLightState.On, appearance);
                     var time = GameTiming.CurTime;
                     if (time > light.LastThunk + ThunkDelay)

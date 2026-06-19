@@ -1,7 +1,7 @@
 using Content.Server.Atmos.EntitySystems;
 using Content.Server.NodeContainer.EntitySystems;
 using Content.Server.NodeContainer.Nodes;
-using Content.Server.Power.EntitySystems;
+using Content.Server.Power.Components;
 using Content.Shared.Atmos;
 using Content.Shared.Atmos.Components;
 using Content.Shared.Atmos.EntitySystems;
@@ -17,7 +17,6 @@ public sealed partial class GasPressurePumpSystem : SharedGasPressurePumpSystem
     [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
     [Dependency] private SharedAmbientSoundSystem _ambientSoundSystem = default!;
     [Dependency] private NodeContainerSystem _nodeContainer = default!;
-    [Dependency] private PowerReceiverSystem _power = default!;
 
     public override void Initialize()
     {
@@ -28,8 +27,11 @@ public sealed partial class GasPressurePumpSystem : SharedGasPressurePumpSystem
 
     private void OnPumpUpdated(Entity<GasPressurePumpComponent> ent, ref AtmosDeviceUpdateEvent args)
     {
+        TryComp<ApcPowerReceiverComponent>(ent, out var receiver);
+        var supplyRatio = receiver?.SupplyRatio ?? 1f;
+
         if (!ent.Comp.Enabled
-            || !_power.IsPowered(ent)
+            || supplyRatio <= 0f
             || !_nodeContainer.TryGetNodes(ent.Owner, ent.Comp.InletName, ent.Comp.OutletName, out PipeNode? inlet, out PipeNode? outlet))
         {
             _ambientSoundSystem.SetAmbience(ent, false);
@@ -47,7 +49,7 @@ public sealed partial class GasPressurePumpSystem : SharedGasPressurePumpSystem
         if (inlet.Air.TotalMoles > 0 && inlet.Air.Temperature > 0)
         {
             // We calculate the necessary moles to transfer using our good ol' friend PV=nRT.
-            var pressureDelta = ent.Comp.TargetPressure - outputStartingPressure;
+            var pressureDelta = (ent.Comp.TargetPressure - outputStartingPressure) * supplyRatio;
             var transferMoles = (pressureDelta * outlet.Air.Volume) / (inlet.Air.Temperature * Atmospherics.R);
 
             var removed = inlet.Air.Remove(transferMoles);

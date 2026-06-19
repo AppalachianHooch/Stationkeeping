@@ -168,13 +168,18 @@ public sealed partial class ChargerSystem : EntitySystem
         if (!TryComp<ChargerComponent>(chargerUid, out var chargerComp))
             return;
 
-        if (!chargerComp.Portable && !_receiver.IsPowered(chargerUid))
+        SharedApcPowerReceiverComponent? receiver = null;
+        _receiver.ResolveApc(chargerUid, ref receiver);
+
+        if (!chargerComp.Portable && (receiver == null || !receiver.Powered))
             return;
 
         if (_whitelist.IsWhitelistFail(chargerComp.Whitelist, ent.Owner))
             return;
 
-        args.NewChargeRate += chargerComp.ChargeRate;
+        // SupplyRatio is already clamped to 0..1, and is 1 when there is no receiver.
+        var supplyRatio = receiver?.SupplyRatio ?? 1f;
+        args.NewChargeRate += chargerComp.ChargeRate * supplyRatio;
     }
     private void OnStatusChanged(Entity<InsideChargerComponent> ent, ref BatteryStateChangedEvent args)
     {
