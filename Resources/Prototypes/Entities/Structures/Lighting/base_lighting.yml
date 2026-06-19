@@ -100,6 +100,7 @@
     containers:
       light_bulb: !type:ContainerSlot
   - type: ApcPowerReceiver
+    loadPriority: Lighting
   - type: ExtensionCableReceiver
   - type: DeviceNetwork
     deviceNetId: Wireless
@@ -315,6 +316,7 @@
   - type: PoweredLight
     bulb: Bulb
   - type: ApcPowerReceiver
+    loadPriority: Lighting
   - type: ExtensionCableReceiver
   - type: DeviceNetwork
     deviceNetId: Wireless
@@ -436,6 +438,7 @@
     color: "#7CFC00"
     mask: /Textures/Effects/LightMasks/double_cone.png
   - type: ApcPowerReceiver
+    loadPriority: LifeSafety
   - type: ExtensionCableReceiver
   - type: Battery
     # Very important:

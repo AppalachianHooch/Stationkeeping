@@ -47,6 +47,7 @@
         volume: 1
   - type: ApcPowerReceiver
     powerLoad: 2000
+    loadPriority: Environment
   - type: Appearance
   - type: GenericVisualizer
     visuals:
@@ -121,6 +122,7 @@
         - MachineLayer
   - type: ApcPowerReceiver
     powerDisabled: true #starts off
+    loadPriority: Environment
   - type: Sprite
     sprite: Structures/Piping/Atmospherics/Portable/portable_sheater.rsi
     noRot: true
@@ -194,3 +196,4 @@
   components:
   - type: ApcPowerReceiver
     powerDisabled: false
+    loadPriority: Environment

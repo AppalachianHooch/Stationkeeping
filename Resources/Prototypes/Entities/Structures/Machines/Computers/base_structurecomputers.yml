@@ -18,6 +18,7 @@
   - type: Computer
   - type: ApcPowerReceiver
     powerLoad: 50
+    loadPriority: Equipment
   - type: PowerState
     idlePowerDraw: 50
     workingPowerDraw: 500

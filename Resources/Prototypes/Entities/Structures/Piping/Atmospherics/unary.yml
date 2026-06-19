@@ -29,6 +29,7 @@
     mode: SnapgridCenter
   components:
     - type: ApcPowerReceiver
+      loadPriority: Environment
     - type: ExtensionCableReceiver
     - type: DeviceNetwork
       prefix: device-address-prefix-vent
@@ -119,6 +120,7 @@
     mode: SnapgridCenter
   components:
     - type: ApcPowerReceiver
+      loadPriority: Environment
     - type: ExtensionCableReceiver
     - type: DeviceNetwork
       prefix: device-address-prefix-scrubber
@@ -296,6 +298,7 @@
       coefficientOfPerformance: -3.9
     - type: ApcPowerReceiver
       powerDisabled: true #starts off
+      loadPriority: Environment
     - type: Machine
       board: ThermomachineFreezerMachineCircuitBoard
     - type: DeviceNetwork
@@ -311,6 +314,7 @@
   - type: GasThermoMachine
   - type: ApcPowerReceiver
     powerDisabled: false
+    loadPriority: Environment
 
 - type: entity
   parent: BaseGasThermoMachine
@@ -341,6 +345,7 @@
       coefficientOfPerformance: 0.95
     - type: ApcPowerReceiver
       powerDisabled: true #starts off
+      loadPriority: Environment
     - type: Machine
       board: ThermomachineHeaterMachineCircuitBoard
     - type: DeviceNetwork
@@ -356,6 +361,7 @@
   - type: GasThermoMachine
   - type: ApcPowerReceiver
     powerDisabled: false
+    loadPriority: Environment
 
 - type: entity
   parent: GasThermoMachineFreezer
@@ -435,6 +441,7 @@
   - type: PipeRestrictOverlap
   - type: ApcPowerReceiver
     powerLoad: 10000
+    loadPriority: Environment
   - type: Machine
     board: CondenserMachineCircuitBoard
   - type: WiresPanel
@@ -472,4 +479,3 @@
   - type: GuideHelp
     guides:
     - GasCondensing
-
