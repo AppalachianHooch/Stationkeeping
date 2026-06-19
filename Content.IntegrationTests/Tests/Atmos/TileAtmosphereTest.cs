@@ -38,7 +38,7 @@ public abstract class TileAtmosphereTest : AtmosTest
 
         await Pair.Server.WaitPost(() =>
         {
-            SAtmos.RunProcessingFull(ProcessEnt, MapData.Grid.Owner, SAtmos.AtmosTickRate);
+            SAtmos.RunProcessingFull(ProcessEnt, MapData.MapUid, SAtmos.AtmosTime);
         });
 
         var mix1 = SAtmos.GetTileMixture(point1);
@@ -104,7 +104,8 @@ public abstract class TileAtmosphereTest : AtmosTest
             Assert.That(ItemToggleSys.TryActivate(welder));
         });
 
-        await Server.WaitRunTicks(500);
+        // Full-cycle dispatch reaches the same fire spread in fewer ticks.
+        await Server.WaitRunTicks(50);
 
         Assert.Multiple(() =>
         {
