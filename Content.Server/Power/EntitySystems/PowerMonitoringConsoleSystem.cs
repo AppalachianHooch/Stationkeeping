@@ -4,6 +4,7 @@ using Content.Server.Power.Nodes;
 using Content.Server.Power.NodeGroups;
 using Content.Server.StationEvents.Components;
 using Content.Shared.GameTicking.Components;
+using Content.Shared.APC;
 using Content.Shared.Pinpointer;
 using Content.Shared.Station.Components;
 using Content.Shared.Power;
@@ -417,6 +418,11 @@ internal sealed partial class PowerMonitoringConsoleSystem : SharedPowerMonitori
             }
         }
 
+        var stationTiers = GetStationTierSummaries(gridUid, out var apcsShedding);
+        var focusedApcTiers = component.Focus != null && TryComp<ApcComponent>(component.Focus, out var focusedApc)
+            ? focusedApc.TierInfo
+            : [];
+
         // Set the UI state
         _userInterfaceSystem.SetUiState(uid,
             PowerMonitoringConsoleUiKey.Key,
@@ -426,7 +432,65 @@ internal sealed partial class PowerMonitoringConsoleSystem : SharedPowerMonitori
                 totalLoads,
                 allEntries.ToArray(),
                 sourcesForFocus.ToArray(),
-                loadsForFocus.ToArray()));
+                loadsForFocus.ToArray(),
+                stationTiers,
+                focusedApcTiers,
+                apcsShedding));
+    }
+
+    private ApcPowerTierInfo[] GetStationTierSummaries(EntityUid gridUid, out NetEntity[] apcsShedding)
+    {
+        var totals = new Dictionary<ApcPowerPriority, (float Requested, float Effective, int Count, bool Brownout, bool Shed)>();
+        var shedding = new List<NetEntity>();
+
+        var query = AllEntityQuery<ApcComponent, TransformComponent>();
+        while (query.MoveNext(out var uid, out var apc, out var xform))
+        {
+            if (!xform.Anchored || xform.GridUid != gridUid || apc.TierInfo.Length == 0)
+                continue;
+
+            var apcShed = false;
+            foreach (var tier in apc.TierInfo)
+            {
+                var current = totals.GetValueOrDefault(tier.Priority);
+                current.Requested += tier.RequestedPower;
+                current.Effective += tier.EffectivePower;
+                current.Count += tier.ReceiverCount;
+                current.Brownout |= tier.State == ApcPowerTierState.Brownout;
+                current.Shed |= tier.State == ApcPowerTierState.Shed;
+                totals[tier.Priority] = current;
+
+                apcShed |= tier.State != ApcPowerTierState.Full;
+            }
+
+            if (apcShed)
+                shedding.Add(GetNetEntity(uid));
+        }
+
+        apcsShedding = shedding.ToArray();
+
+        var summaries = new List<ApcPowerTierInfo>();
+        foreach (var priority in Enum.GetValues<ApcPowerPriority>())
+        {
+            var total = totals.GetValueOrDefault(priority);
+            var ratio = total.Requested > 0f ? total.Effective / total.Requested : 1f;
+            var state = total.Shed
+                ? ApcPowerTierState.Shed
+                : total.Brownout
+                    ? ApcPowerTierState.Brownout
+                    : ApcPowerTierState.Full;
+
+            summaries.Add(new ApcPowerTierInfo(
+                priority,
+                total.Requested,
+                total.Effective,
+                total.Count,
+                ratio,
+                state,
+                ApcPowerPriorityOverride.Auto));
+        }
+
+        return summaries.ToArray();
     }
 
     private PowerStats GetPowerStats(EntityUid uid, PowerMonitoringDeviceComponent device)
