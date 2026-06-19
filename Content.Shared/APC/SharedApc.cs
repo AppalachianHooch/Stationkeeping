@@ -1,4 +1,5 @@
 using Robust.Shared.Serialization;
+using Content.Shared.Power.Components;
 
 namespace Content.Shared.APC
 {
@@ -183,8 +184,9 @@ namespace Content.Shared.APC
         public readonly float Charge;
         public readonly float MaxLoad;
         public readonly bool Tripped;
+        public readonly ApcPowerTierInfo[] Tiers;
 
-        public ApcBoundInterfaceState(bool mainBreaker, int power, ApcExternalPowerState apcExternalPower, float charge, float maxLoad, bool tripped)
+        public ApcBoundInterfaceState(bool mainBreaker, int power, ApcExternalPowerState apcExternalPower, float charge, float maxLoad, bool tripped, ApcPowerTierInfo[]? tiers = null)
         {
             MainBreaker = mainBreaker;
             Power = power;
@@ -192,6 +194,7 @@ namespace Content.Shared.APC
             Charge = charge;
             MaxLoad = maxLoad;
             Tripped = tripped;
+            Tiers = tiers ?? [];
         }
 
         public bool Equals(ApcBoundInterfaceState? other)
@@ -203,7 +206,8 @@ namespace Content.Shared.APC
                    ApcExternalPower == other.ApcExternalPower &&
                    MathHelper.CloseTo(Charge, other.Charge) &&
                    MathHelper.CloseTo(MaxLoad, other.MaxLoad) &&
-                   Tripped == other.Tripped;
+                   Tripped == other.Tripped &&
+                   Tiers.SequenceEqual(other.Tiers);
         }
 
         public override bool Equals(object? obj)
@@ -213,13 +217,31 @@ namespace Content.Shared.APC
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(MainBreaker, Power, (int) ApcExternalPower, Charge, MaxLoad, Tripped);
+            return HashCode.Combine(MainBreaker, Power, (int) ApcExternalPower, Charge, MaxLoad, Tripped, Tiers.Length);
         }
     }
 
     [Serializable, NetSerializable]
     public sealed class ApcToggleMainBreakerMessage : BoundUserInterfaceMessage
     {
+    }
+
+    [Serializable, NetSerializable]
+    public readonly record struct ApcPowerTierInfo(
+        ApcPowerPriority Priority,
+        float RequestedPower,
+        float EffectivePower,
+        int ReceiverCount,
+        float ShedRatio,
+        ApcPowerTierState State,
+        ApcPowerPriorityOverride Override);
+
+    [Serializable, NetSerializable]
+    public sealed class ApcSetTierOverrideMessage(ApcPowerPriority priority, ApcPowerPriorityOverride priorityOverride)
+        : BoundUserInterfaceMessage
+    {
+        public readonly ApcPowerPriority Priority = priority;
+        public readonly ApcPowerPriorityOverride Override = priorityOverride;
     }
 
     public enum ApcExternalPowerState : byte

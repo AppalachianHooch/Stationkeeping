@@ -4,6 +4,7 @@ using Content.Server.Power.Components;
 using Content.Server.Power.NodeGroups;
 using Content.Server.Power.Pow3r;
 using Content.Shared.CCVar;
+using Content.Shared.APC;
 using Content.Shared.Power;
 using Content.Shared.Power.Components;
 using Content.Shared.Power.EntitySystems;
@@ -33,6 +34,14 @@ namespace Content.Server.Power.EntitySystems
         private readonly PowerState _powerState = new();
         private readonly HashSet<PowerNet> _powerNetReconnectQueue = new();
         private readonly HashSet<ApcNet> _apcNetReconnectQueue = new();
+        private static readonly ApcPowerPriority[] PowerPriorityOrder =
+        [
+            ApcPowerPriority.LifeSafety,
+            ApcPowerPriority.Environment,
+            ApcPowerPriority.Equipment,
+            ApcPowerPriority.Lighting,
+            ApcPowerPriority.Comfort,
+        ];
 
         private BatteryRampPegSolver _solver = new();
 
@@ -282,6 +291,8 @@ namespace Content.Server.Power.EntitySystems
             // Synchronize batteries
             RaiseLocalEvent(new NetworkBatteryPreSync());
 
+            ApplyApcShedding(frameTime);
+
             // Run power solver.
             _solver.Tick(frameTime, _powerState, _parMan);
 
@@ -294,6 +305,141 @@ namespace Content.Server.Power.EntitySystems
             UpdateApcPowerReceiver(frameTime);
             UpdatePowerConsumer();
             UpdateNetworkBattery();
+        }
+
+        private void ApplyApcShedding(float frameTime)
+        {
+            // Per-tier scratch buffers, indexed by (int) priority. PowerPriorityOrder is in enum order.
+            Span<float> requested = stackalloc float[PowerPriorityOrder.Length];
+            Span<int> tierCounts = stackalloc int[PowerPriorityOrder.Length];
+            Span<float> shedRatios = stackalloc float[PowerPriorityOrder.Length];
+            Span<ApcPowerTierState> tierStates = stackalloc ApcPowerTierState[PowerPriorityOrder.Length];
+
+            var query = EntityQueryEnumerator<ApcComponent, PowerNetworkBatteryComponent>();
+            while (query.MoveNext(out var uid, out var apc, out var netBattery))
+            {
+                if (apc.Net is not ApcNet apcNet)
+                    continue;
+
+                requested.Clear();
+                tierCounts.Clear();
+
+                // First pass: sum requested load per tier without materializing the receiver set.
+                var hasReceivers = false;
+                foreach (var provider in apcNet.Providers)
+                {
+                    foreach (var receiver in provider.LinkedReceivers)
+                    {
+                        if (!receiver.NeedsPower || receiver.PowerDisabled || receiver.Load <= 0f)
+                            continue;
+
+                        var tier = (int) receiver.LoadPriority;
+                        requested[tier] += receiver.Load;
+                        tierCounts[tier]++;
+                        hasReceivers = true;
+                    }
+                }
+
+                if (!hasReceivers)
+                {
+                    apc.TierInfo = [];
+                    continue;
+                }
+
+                var remaining = apc.MainBreakerEnabled
+                    ? GetAvailableApcSupply(netBattery.NetworkBattery, frameTime)
+                    : 0f;
+
+                var tierInfo = new ApcPowerTierInfo[PowerPriorityOrder.Length];
+
+                for (var i = 0; i < PowerPriorityOrder.Length; i++)
+                {
+                    var priority = PowerPriorityOrder[i];
+                    var tier = (int) priority;
+                    var req = requested[tier];
+                    var overrideMode = apc.TierOverrides.GetValueOrDefault(priority, ApcPowerPriorityOverride.Auto);
+                    var shedRatio = 1f;
+                    var effective = req;
+                    var state = ApcPowerTierState.Full;
+
+                    if (req <= 0f)
+                    {
+                        shedRatios[tier] = 1f;
+                        tierStates[tier] = ApcPowerTierState.Full;
+                        tierInfo[i] = new ApcPowerTierInfo(priority, 0f, 0f, 0, 1f, ApcPowerTierState.Full, overrideMode);
+                        continue;
+                    }
+
+                    switch (overrideMode)
+                    {
+                        case ApcPowerPriorityOverride.ForceOff:
+                            shedRatio = 0f;
+                            effective = 0f;
+                            state = ApcPowerTierState.Shed;
+                            break;
+                        case ApcPowerPriorityOverride.ForceOn:
+                            remaining = Math.Max(0f, remaining - req);
+                            break;
+                        default:
+                            if (remaining >= req)
+                            {
+                                remaining -= req;
+                            }
+                            else if (remaining > 0f)
+                            {
+                                shedRatio = remaining / req;
+                                effective = remaining;
+                                remaining = 0f;
+                                state = ApcPowerTierState.Brownout;
+                            }
+                            else
+                            {
+                                shedRatio = 0f;
+                                effective = 0f;
+                                state = ApcPowerTierState.Shed;
+                            }
+
+                            break;
+                    }
+
+                    shedRatios[tier] = shedRatio;
+                    tierStates[tier] = state;
+                    tierInfo[i] = new ApcPowerTierInfo(priority, req, effective, tierCounts[tier], shedRatio, state, overrideMode);
+                }
+
+                // Second pass: push resolved ratios/states back onto each receiver.
+                foreach (var provider in apcNet.Providers)
+                {
+                    foreach (var receiver in provider.LinkedReceivers)
+                    {
+                        if (!receiver.NeedsPower || receiver.PowerDisabled || receiver.Load <= 0f)
+                            continue;
+
+                        var tier = (int) receiver.LoadPriority;
+                        var shedRatio = shedRatios[tier];
+                        if (!MathHelper.CloseTo(receiver.ShedRatio, shedRatio))
+                        {
+                            receiver.ShedRatio = shedRatio;
+                            Dirty(receiver.Owner, receiver);
+                        }
+
+                        receiver.ShedState = tierStates[tier];
+                    }
+                }
+
+                apc.TierInfo = tierInfo;
+            }
+        }
+
+        private static float GetAvailableApcSupply(PowerState.Battery battery, float frameTime)
+        {
+            if (!battery.Enabled || !battery.CanDischarge || battery.Paused || frameTime <= 0f)
+                return 0f;
+
+            var scaledSpace = battery.CurrentStorage / frameTime;
+            var supplyCap = Math.Min(battery.MaxSupply, battery.SupplyRampPosition + battery.SupplyRampTolerance);
+            var supplyAndPassthrough = supplyCap + battery.CurrentReceiving * battery.Efficiency;
+            return Math.Max(0f, Math.Min(scaledSpace, supplyAndPassthrough));
         }
 
         private void ReconnectNetworks()
@@ -329,7 +475,11 @@ namespace Content.Server.Power.EntitySystems
             if (!comp.NeedsPower)
                 return true;
 
-            return comp.Load > 0 && MathHelper.CloseToPercent(comp.NetworkLoad.ReceivingPower, comp.Load);
+            if (comp.Load <= 0)
+                return false;
+
+            var threshold = comp.Powered ? comp.PowerOffThreshold : comp.PowerOnThreshold;
+            return comp.SupplyRatio >= threshold || MathHelper.CloseTo(comp.SupplyRatio, threshold);
         }
 
         public override bool IsPoweredCalculate(SharedApcPowerReceiverComponent comp)
@@ -388,8 +538,11 @@ namespace Content.Server.Power.EntitySystems
                     powered |= enableBattery;
                 }
 
-                // If new value is the same as the old, then exit
-                if (apcReceiver.Powered == powered)
+                var receivingPower = apcReceiver.ReceivingPower;
+                var receivingChanged = !MathHelper.CloseToPercent(apcReceiver.LastReceivingPower, receivingPower);
+
+                // If new values are the same as the old ones, then exit
+                if (apcReceiver.Powered == powered && !receivingChanged)
                     continue;
 
                 metadata ??= MetaData(uid);
@@ -397,9 +550,10 @@ namespace Content.Server.Power.EntitySystems
                     continue;
 
                 apcReceiver.Powered = powered;
+                apcReceiver.LastReceivingPower = receivingPower;
                 Dirty(uid, apcReceiver, metadata);
 
-                var ev = new PowerChangedEvent(powered, apcReceiver.NetworkLoad.ReceivingPower);
+                var ev = new PowerChangedEvent(powered, receivingPower);
                 RaiseLocalEvent(uid, ref ev);
             }
         }
