@@ -221,7 +221,7 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
 
     private void UpdateTierSummary(ApcPowerTierInfo[] stationTiers, ApcPowerTierInfo[] focusedApcTiers, NetEntity[] apcsShedding)
     {
-        var lines = new List<string> { "Station tier satisfaction" };
+        var lines = new List<string> { Loc.GetString("power-monitoring-window-tier-satisfaction") };
         foreach (var tier in stationTiers)
         {
             if (tier.ReceiverCount == 0)
@@ -232,7 +232,7 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
 
         if (focusedApcTiers.Length > 0)
         {
-            lines.Add("Focused APC");
+            lines.Add(Loc.GetString("power-monitoring-window-tier-focused-apc"));
             foreach (var tier in focusedApcTiers)
             {
                 if (tier.ReceiverCount == 0)
@@ -243,9 +243,10 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
         }
 
         if (apcsShedding.Length > 0)
-            lines.Add($"APCs shedding: {apcsShedding.Length}");
+            lines.Add(Loc.GetString("power-monitoring-window-tier-apcs-shedding", ("count", apcsShedding.Length)));
 
-        TierSummaryText.Text = lines.Count == 1 ? "Station tier satisfaction: no APC load" : string.Join('\n', lines);
+        var hasData = lines.Count > 1;
+        TierSummaryText.Text = hasData ? string.Join('\n', lines) : Loc.GetString("power-monitoring-window-tier-no-load");
     }
 
     private void AddTrackedEntityToNavMap(NetEntity netEntity, PowerMonitoringDeviceMetaData metaData, List<NetEntity> entitiesOfInterest)

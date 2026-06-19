@@ -1346,7 +1346,7 @@ namespace Content.IntegrationTests.Tests.Power
 
             await server.WaitAssertion(() =>
             {
-                var map = mapSys.CreateMap(out var mapId);
+                mapSys.CreateMap(out var mapId);
                 var grid = mapManager.CreateGridEntity(mapId);
 
                 const int range = 5;
@@ -1403,7 +1403,7 @@ namespace Content.IntegrationTests.Tests.Power
 
             await server.WaitAssertion(() =>
             {
-                var map = mapSys.CreateMap(out var mapId);
+                mapSys.CreateMap(out var mapId);
                 var grid = mapManager.CreateGridEntity(mapId);
 
                 const int range = 5;
@@ -1462,7 +1462,7 @@ namespace Content.IntegrationTests.Tests.Power
 
             await server.WaitAssertion(() =>
             {
-                var map = mapSys.CreateMap(out var mapId);
+                mapSys.CreateMap(out var mapId);
                 var grid = mapManager.CreateGridEntity(mapId);
 
                 const int range = 5;
@@ -1532,7 +1532,7 @@ namespace Content.IntegrationTests.Tests.Power
 
             await server.WaitAssertion(() =>
             {
-                var map = mapSys.CreateMap(out var mapId);
+                mapSys.CreateMap(out var mapId);
                 var grid = mapManager.CreateGridEntity(mapId);
 
                 const int range = 5;

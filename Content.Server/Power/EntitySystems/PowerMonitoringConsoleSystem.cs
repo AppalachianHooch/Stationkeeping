@@ -469,9 +469,11 @@ internal sealed partial class PowerMonitoringConsoleSystem : SharedPowerMonitori
 
         apcsShedding = shedding.ToArray();
 
-        var summaries = new List<ApcPowerTierInfo>();
-        foreach (var priority in Enum.GetValues<ApcPowerPriority>())
+        var priorities = Enum.GetValues<ApcPowerPriority>();
+        var summaries = new ApcPowerTierInfo[priorities.Length];
+        for (var i = 0; i < priorities.Length; i++)
         {
+            var priority = priorities[i];
             var total = totals.GetValueOrDefault(priority);
             var ratio = total.Requested > 0f ? total.Effective / total.Requested : 1f;
             var state = total.Shed
@@ -480,17 +482,17 @@ internal sealed partial class PowerMonitoringConsoleSystem : SharedPowerMonitori
                     ? ApcPowerTierState.Brownout
                     : ApcPowerTierState.Full;
 
-            summaries.Add(new ApcPowerTierInfo(
+            summaries[i] = new ApcPowerTierInfo(
                 priority,
                 total.Requested,
                 total.Effective,
                 total.Count,
                 ratio,
                 state,
-                ApcPowerPriorityOverride.Auto));
+                ApcPowerPriorityOverride.Auto);
         }
 
-        return summaries.ToArray();
+        return summaries;
     }
 
     private PowerStats GetPowerStats(EntityUid uid, PowerMonitoringDeviceComponent device)

@@ -26,3 +26,8 @@ power-monitoring-window-flavor-left = [user@nanotrasen] $run power_net_query
 power-monitoring-window-flavor-right = v1.3
 power-monitoring-window-rogue-power-consumer = [color=white][font size=14][bold]! WARNING - ROGUE POWER CONSUMING DEVICE DETECTED ![/bold][/font][/color]
 power-monitoring-window-power-net-abnormalities = [color=white][font size=14][bold]CAUTION - ABNORMAL ACTIVITY IN POWER NET[/bold][/font][/color]
+
+power-monitoring-window-tier-satisfaction = Station tier satisfaction
+power-monitoring-window-tier-no-load = Station tier satisfaction: no APC load
+power-monitoring-window-tier-focused-apc = Focused APC
+power-monitoring-window-tier-apcs-shedding = APCs shedding: {$count}

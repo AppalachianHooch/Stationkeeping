@@ -10,6 +10,7 @@ using Content.Shared.Power.Components;
 using Robust.Client.Graphics;
 using Robust.Client.UserInterface.Controls;
 using FancyWindow = Content.Client.UserInterface.Controls.FancyWindow;
+using TableContainer = Content.Client.UserInterface.Controls.TableContainer;
 
 namespace Content.Client.Power.APC.UI
 {
@@ -88,42 +89,35 @@ namespace Content.Client.Power.APC.UI
 
             TierContainer.AddChild(new Label
             {
-                Text = "Load tiers",
+                Text = Loc.GetString("apc-menu-tiers-heading"),
                 StyleClasses = { "LabelHeading" },
             });
 
-            var header = new GridContainer { Columns = 5, HorizontalExpand = true };
-            header.AddChild(new Label { Text = "Tier", MinWidth = 90 });
-            header.AddChild(new Label { Text = "Req W", MinWidth = 64 });
-            header.AddChild(new Label { Text = "Eff W", MinWidth = 64 });
-            header.AddChild(new Label { Text = "State", MinWidth = 78 });
-            header.AddChild(new Label { Text = "Override", MinWidth = 140 });
-            TierContainer.AddChild(header);
+            var table = new TableContainer { Columns = 5, HorizontalExpand = true };
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-tier") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-req") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-eff") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-state") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-override") });
 
             foreach (var tier in state.Tiers)
             {
-                var row = new GridContainer { Columns = 5, HorizontalExpand = true };
-                row.AddChild(new Label { Text = tier.Priority.ToString(), MinWidth = 90 });
-                row.AddChild(new Label { Text = MathF.Ceiling(tier.RequestedPower).ToString(), MinWidth = 64 });
-                row.AddChild(new Label { Text = MathF.Ceiling(tier.EffectivePower).ToString(), MinWidth = 64 });
-                row.AddChild(new Label { Text = $"{tier.State} {tier.ShedRatio:P0}", MinWidth = 78 });
+                table.AddChild(new Label { Text = tier.Priority.ToString() });
+                table.AddChild(new Label { Text = MathF.Ceiling(tier.RequestedPower).ToString() });
+                table.AddChild(new Label { Text = MathF.Ceiling(tier.EffectivePower).ToString() });
+                table.AddChild(new Label { Text = $"{tier.State} {tier.ShedRatio:P0}" });
 
-                var overrideButton = new OptionButton { MinWidth = 140 };
-                overrideButton.AddItem("Auto", (int) ApcPowerPriorityOverride.Auto);
-                overrideButton.AddItem("Force On", (int) ApcPowerPriorityOverride.ForceOn);
-                overrideButton.AddItem("Force Off", (int) ApcPowerPriorityOverride.ForceOff);
+                var overrideButton = new OptionButton();
+                overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-auto"), (int) ApcPowerPriorityOverride.Auto);
+                overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-force-on"), (int) ApcPowerPriorityOverride.ForceOn);
+                overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-force-off"), (int) ApcPowerPriorityOverride.ForceOff);
                 overrideButton.SelectId((int) tier.Override);
                 var priority = tier.Priority;
-                overrideButton.OnItemSelected += args =>
-                {
-                    var selected = (ApcPowerPriorityOverride) args.Id;
-                    overrideButton.SelectId(args.Id);
-                    OnTierOverride?.Invoke(priority, selected);
-                };
-                row.AddChild(overrideButton);
-
-                TierContainer.AddChild(row);
+                overrideButton.OnItemSelected += args => OnTierOverride?.Invoke(priority, (ApcPowerPriorityOverride) args.Id);
+                table.AddChild(overrideButton);
             }
+
+            TierContainer.AddChild(table);
         }
 
         public void SetAccessEnabled(bool hasAccess)

@@ -16,3 +16,14 @@ apc-menu-power-state-label-tripped = OVERLOAD
 
 apc-menu-flavor-left = Contact an engineer for assistance.
 apc-menu-flavor-right = v1.2
+
+# Tier control table
+apc-menu-tiers-heading = Load tiers
+apc-menu-tiers-col-tier = Tier
+apc-menu-tiers-col-req = Req W
+apc-menu-tiers-col-eff = Eff W
+apc-menu-tiers-col-state = State
+apc-menu-tiers-col-override = Override
+apc-menu-tiers-override-auto = Auto
+apc-menu-tiers-override-force-on = Force On
+apc-menu-tiers-override-force-off = Force Off

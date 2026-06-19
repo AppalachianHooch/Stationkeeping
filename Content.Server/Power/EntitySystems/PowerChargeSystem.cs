@@ -183,6 +183,10 @@ public sealed partial class PowerChargeSystem : EntitySystem
             chargeEta = short.MinValue; // N/A
             atTarget = true;
         }
+        else if (chargeRate == 0f)
+        {
+            chargeEta = short.MinValue; // equilibrium, no ETA
+        }
         else
         {
             var diff = chargeTarget - component.Charge;
@@ -195,7 +199,7 @@ public sealed partial class PowerChargeSystem : EntitySystem
             < 0 when atTarget => PowerChargePowerStatus.Off,
             > 0 => PowerChargePowerStatus.Charging,
             < 0 => PowerChargePowerStatus.Discharging,
-            _ => throw new ArgumentOutOfRangeException()
+            _ => PowerChargePowerStatus.Charging, // break-even at 50% supply
         };
 
         var state = new PowerChargeState(
