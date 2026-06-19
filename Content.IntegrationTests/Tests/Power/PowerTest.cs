@@ -7,6 +7,7 @@ using Content.Server.Power.Nodes;
 using Content.Shared.Coordinates;
 using Content.Shared.NodeContainer;
 using Content.Shared.Power.Components;
+using Robust.Server.GameObjects;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
 using Robust.Shared.Maths;
@@ -1328,6 +1329,252 @@ namespace Content.IntegrationTests.Tests.Power
                     Assert.That(apcNetBattery.CurrentSupply, Is.EqualTo(1).Within(0.1));
                 });
             });
+        }
+
+        [Test]
+        public async Task ApcReceiverTracksPartialSupply()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            PowerNetworkBatteryComponent apcNetBattery = default!;
+            ApcPowerReceiverComponent receiver = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                var map = mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                {
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+                }
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var powerReceiverEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+
+                receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(powerReceiverEnt);
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(powerReceiverEnt, range);
+
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                receiver.Load = 100;
+                apcNetBattery.MaxSupply = 50;
+                apcNetBattery.SupplyRampTolerance = 50;
+            });
+
+            server.RunTicks(2);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(receiver.Powered, Is.False);
+                    Assert.That(receiver.PowerReceived, Is.EqualTo(50).Within(0.1));
+                    Assert.That(receiver.SupplyRatio, Is.EqualTo(0.5f).Within(0.01f));
+                    Assert.That(apcNetBattery.CurrentSupply, Is.EqualTo(50).Within(0.1));
+                });
+            });
+        }
+
+        [Test]
+        public async Task PoweredLightDimsOnPartialApcSupply()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            ApcPowerReceiverComponent receiver = default!;
+            PointLightComponent pointLight = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                var map = mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                {
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+                }
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var lightEnt = entityManager.SpawnEntity("Poweredlight", grid.Owner.ToCoordinates(0, range - 1));
+
+                receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(lightEnt);
+                pointLight = entityManager.GetComponent<PointLightComponent>(lightEnt);
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(lightEnt, range);
+
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                apcNetBattery.MaxSupply = 12.5f;
+                apcNetBattery.SupplyRampTolerance = 12.5f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(receiver.Load, Is.EqualTo(25).Within(0.1));
+                    Assert.That(receiver.Powered, Is.False);
+                    Assert.That(receiver.PowerReceived, Is.EqualTo(12.5f).Within(0.1));
+                    Assert.That(pointLight.Enabled, Is.True);
+                    Assert.That(pointLight.Energy, Is.EqualTo(0.4f).Within(0.01f));
+                });
+            });
+        }
+
+        [Test]
+        public async Task ApcShedsLowerPriorityTiersFirst()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            ApcPowerReceiverComponent lifeSafety = default!;
+            ApcPowerReceiverComponent lighting = default!;
+            ApcPowerReceiverComponent comfort = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                var map = mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var lifeEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+                var lightingEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 2));
+                var comfortEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 3));
+
+                lifeSafety = entityManager.GetComponent<ApcPowerReceiverComponent>(lifeEnt);
+                lighting = entityManager.GetComponent<ApcPowerReceiverComponent>(lightingEnt);
+                comfort = entityManager.GetComponent<ApcPowerReceiverComponent>(comfortEnt);
+
+                lifeSafety.Load = 100;
+                lifeSafety.LoadPriority = ApcPowerPriority.LifeSafety;
+                lighting.Load = 100;
+                lighting.LoadPriority = ApcPowerPriority.Lighting;
+                comfort.Load = 100;
+                comfort.LoadPriority = ApcPowerPriority.Comfort;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(lifeEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(lightingEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(comfortEnt, range);
+
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                apcNetBattery.MaxSupply = 150f;
+                apcNetBattery.SupplyRampTolerance = 150f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(lifeSafety.SupplyRatio, Is.EqualTo(1f).Within(0.01f));
+                    Assert.That(lighting.SupplyRatio, Is.EqualTo(0.5f).Within(0.01f));
+                    Assert.That(comfort.SupplyRatio, Is.EqualTo(0f).Within(0.01f));
+                    Assert.That(lifeSafety.ShedState, Is.EqualTo(ApcPowerTierState.Full));
+                    Assert.That(lighting.ShedState, Is.EqualTo(ApcPowerTierState.Brownout));
+                    Assert.That(comfort.ShedState, Is.EqualTo(ApcPowerTierState.Shed));
+                });
+            });
+        }
+
+        [Test]
+        public async Task ApcReceiverHysteresisDoesNotFlickerAroundBrownoutThreshold()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            PowerNetworkBatteryComponent apcNetBattery = default!;
+            ApcPowerReceiverComponent receiver = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                var map = mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var powerReceiverEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+
+                receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(powerReceiverEnt);
+                receiver.Load = 100;
+                receiver.PowerOffThreshold = 0.5f;
+                receiver.PowerOnThreshold = 0.75f;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(powerReceiverEnt, range);
+
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                apcNetBattery.SupplyRampTolerance = 100f;
+                apcNetBattery.MaxSupply = 60f;
+            });
+
+            server.RunTicks(3);
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.False));
+
+            await server.WaitAssertion(() => apcNetBattery.MaxSupply = 80f);
+            server.RunTicks(3);
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.True));
+
+            await server.WaitAssertion(() => apcNetBattery.MaxSupply = 60f);
+            server.RunTicks(3);
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.True));
+
+            await server.WaitAssertion(() => apcNetBattery.MaxSupply = 40f);
+            server.RunTicks(3);
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.False));
         }
 
     }
