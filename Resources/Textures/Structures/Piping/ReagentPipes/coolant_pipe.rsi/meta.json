@@ -1,0 +1,27 @@
+{
+    "version": 1,
+    "size": {
+        "x": 32,
+        "y": 32
+    },
+    "license": "CC-BY-SA-3.0",
+    "copyright": "Based on Structures/Piping/Atmospherics/pipe.rsi, modified for Ships Worth Breaking.",
+    "states": [
+        {
+            "name": "pipeStraight",
+            "directions": 4
+        },
+        {
+            "name": "pipeBend",
+            "directions": 4
+        },
+        {
+            "name": "pipeTJunction",
+            "directions": 4
+        },
+        {
+            "name": "pipeFourway",
+            "directions": 4
+        }
+    ]
+}

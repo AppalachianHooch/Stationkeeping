@@ -1,0 +1,255 @@
+# Reagent pipes: liquid analogue of atmospheric pipes. Pipes in a connected
+# network pool their reagents into one shared solution.
+
+- type: entity
+  abstract: true
+  parent: BaseItem
+  id: ReagentPipeBase
+  name: reagent pipe
+  description: Carries liquid reagents between connected machines.
+  placement:
+    mode: SnapgridCenter
+  components:
+  - type: Visibility
+    layer: 1
+  - type: Item
+    size: Normal
+  - type: Transform
+    anchored: true
+  - type: Damageable
+    damageModifierSet: Metallic
+  - type: Injurable
+    damageContainer: StructuralInorganic
+  # Reagent distribution runs overhead on the ceiling layer, clear of the crowded subfloor.
+  - type: CeilingLayer
+  - type: CollideOnAnchor
+  - type: Anchorable
+  - type: Rotatable
+    increment: 90
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 100
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+          params:
+            volume: -8
+      - !type:DoActsBehavior
+        acts: ["Destruction"]
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/reagent_pipe.rsi
+    drawdepth: Overdoors
+  - type: NodeContainer
+  - type: Physics
+    canCollide: false
+    bodyType: static
+  - type: Tag
+    tags:
+    - Pipe
+  - type: StaticPrice
+    price: 30
+
+# Note: the PipeDirection of each node is the south-facing (rotation 0) version.
+
+- type: entity
+  parent: ReagentPipeBase
+  id: ReagentPipeStraight
+  suffix: Straight
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: Longitudinal
+  - type: Sprite
+    layers:
+    - state: pipeStraight
+  - type: Construction
+    graph: ReagentPipe
+    node: straight
+
+- type: entity
+  parent: ReagentPipeBase
+  id: ReagentPipeBend
+  suffix: Bend
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: SWBend
+  - type: Sprite
+    layers:
+    - state: pipeBend
+  - type: Construction
+    graph: ReagentPipe
+    node: bend
+
+- type: entity
+  parent: ReagentPipeBase
+  id: ReagentPipeTJunction
+  suffix: T-Junction
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: TSouth
+  - type: Sprite
+    layers:
+    - state: pipeTJunction
+  - type: Construction
+    graph: ReagentPipe
+    node: tjunction
+
+- type: entity
+  parent: ReagentPipeBase
+  id: ReagentPipeFourway
+  suffix: Fourway
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: Fourway
+  - type: Sprite
+    layers:
+    - state: pipeFourway
+  - type: Construction
+    graph: ReagentPipe
+    node: fourway
+
+# Pump: pushes reagents directionally from inlet to outlet.
+
+- type: entity
+  parent: ReagentPipeBase
+  id: ReagentPipePump
+  name: reagent pump
+  description: Pumps liquid reagents from one side to the other.
+  components:
+  - type: NodeContainer
+    nodes:
+      inlet:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: South
+      outlet:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: North
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/pump.rsi
+    layers:
+    - state: pumpPressure
+  - type: ReagentPipePump
+  - type: Construction
+    graph: ReagentPipe
+    node: pump
+
+# Valve: manually merges or splits the two connected nets.
+
+- type: entity
+  parent: ReagentPipeBase
+  id: ReagentPipeValve
+  name: reagent valve
+  description: A hand valve. Toggle it to open or close the line.
+  components:
+  - type: NodeContainer
+    nodes:
+      inlet:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: South
+      outlet:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: North
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/pump.rsi
+    layers:
+    - state: pumpManualValve
+  - type: ReagentPipeValve
+  - type: Construction
+    graph: ReagentPipe
+    node: valve
+
+# Ports: bridge a hand-fillable/drainable solution to the pipe network.
+
+- type: entity
+  parent: BaseStructure
+  id: ReagentPipeInputPort
+  name: reagent input port
+  description: Pours its contents into the connected reagent pipe network. Refill it with a beaker.
+  components:
+  - type: Transform
+    anchored: true
+  - type: Anchorable
+  - type: Rotatable
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/pump.rsi
+    state: pumpPressure
+  - type: Solution
+    id: tank
+    solution:
+      maxVol: 100
+  - type: RefillableSolution
+    solution: tank
+  - type: DrainableSolution
+    solution: tank
+  - type: ExaminableSolution
+    solution: tank
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: Fourway
+  - type: ReagentPipeConnector
+    mode: Input
+    solutionName: tank
+  - type: Construction
+    graph: ReagentPipe
+    node: inputPort
+
+- type: entity
+  parent: BaseStructure
+  id: ReagentPipeOutputPort
+  name: reagent output port
+  description: Draws reagents out of the connected pipe network. Empty it with a beaker.
+  components:
+  - type: Transform
+    anchored: true
+  - type: Anchorable
+  - type: Rotatable
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/pump.rsi
+    state: pumpVolume
+  - type: Solution
+    id: tank
+    solution:
+      maxVol: 100
+  - type: RefillableSolution
+    solution: tank
+  - type: DrainableSolution
+    solution: tank
+  - type: ExaminableSolution
+    solution: tank
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: Fourway
+  - type: ReagentPipeConnector
+    mode: Output
+    solutionName: tank
+  - type: Construction
+    graph: ReagentPipe
+    node: outputPort

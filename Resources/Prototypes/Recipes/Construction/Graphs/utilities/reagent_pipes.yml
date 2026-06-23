@@ -1,0 +1,174 @@
+- type: constructionGraph
+  id: ReagentPipe
+  start: start
+  graph:
+  - node: start
+    edges:
+    - to: straight
+      steps:
+      - material: Steel
+        amount: 1
+        doAfter: 1
+    - to: bend
+      steps:
+      - material: Steel
+        amount: 1
+        doAfter: 1
+    - to: tjunction
+      steps:
+      - material: Steel
+        amount: 1
+        doAfter: 1
+    - to: fourway
+      steps:
+      - material: Steel
+        amount: 1
+        doAfter: 1
+    - to: pump
+      steps:
+      - material: Steel
+        amount: 2
+        doAfter: 2
+    - to: valve
+      steps:
+      - material: Steel
+        amount: 2
+        doAfter: 2
+    - to: inputPort
+      steps:
+      - material: Steel
+        amount: 2
+        doAfter: 2
+    - to: outputPort
+      steps:
+      - material: Steel
+        amount: 2
+        doAfter: 2
+
+  - node: straight
+    entity: ReagentPipeStraight
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 1
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: bend
+    entity: ReagentPipeBend
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 1
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: tjunction
+    entity: ReagentPipeTJunction
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 1
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: fourway
+    entity: ReagentPipeFourway
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 1
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: pump
+    entity: ReagentPipePump
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 2
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: valve
+    entity: ReagentPipeValve
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 2
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: inputPort
+    entity: ReagentPipeInputPort
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 2
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
+
+  - node: outputPort
+    entity: ReagentPipeOutputPort
+    edges:
+    - to: start
+      conditions:
+      - !type:EntityAnchored
+        anchored: false
+      completed:
+      - !type:SpawnPrototype
+        prototype: SheetSteel1
+        amount: 2
+      - !type:DeleteEntity
+      steps:
+      - tool: Welding
+        doAfter: 1
