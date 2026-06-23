@@ -12,9 +12,9 @@ namespace Content.Server.Chemistry.Commands;
 /// right fittings via <see cref="ReagentPipeLayerSystem"/>. A mapping convenience and a live caller for the layer.
 /// </summary>
 [AdminCommand(AdminFlags.Mapping)]
-public sealed class AutoReagentPipeCommand : IConsoleCommand
+public sealed partial class AutoReagentPipeCommand : IConsoleCommand
 {
-    [Dependency] private readonly IEntityManager _entManager = default!;
+    [Dependency] private IEntityManager _entManager = default!;
 
     public string Command => "autoreagentpipe";
     public string Description => "Auto-lays an L-shaped reagent pipe run between two tiles on the grid you're on.";
