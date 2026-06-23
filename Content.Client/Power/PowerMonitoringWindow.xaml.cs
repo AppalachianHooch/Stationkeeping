@@ -227,7 +227,7 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
             if (tier.ReceiverCount == 0)
                 continue;
 
-            lines.Add($"{tier.Priority}: {tier.ShedRatio:P0} {tier.State}");
+            lines.Add($"{ApcPowerTierLoc.Priority(tier.Priority)}: {tier.ShedRatio:P0} {ApcPowerTierLoc.State(tier.State)}");
         }
 
         if (focusedApcTiers.Length > 0)
@@ -238,7 +238,7 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
                 if (tier.ReceiverCount == 0)
                     continue;
 
-                lines.Add($"{tier.Priority}: {MathF.Ceiling(tier.EffectivePower)}/{MathF.Ceiling(tier.RequestedPower)} W {tier.State}");
+                lines.Add($"{ApcPowerTierLoc.Priority(tier.Priority)}: {MathF.Ceiling(tier.EffectivePower)}/{MathF.Ceiling(tier.RequestedPower)} W {ApcPowerTierLoc.State(tier.State)}");
             }
         }
 

@@ -63,7 +63,8 @@ public abstract partial class SharedGasPressurePumpSystem : EntitySystem
         if (!Resolve(ent, ref ent.Comp2, false))
             return;
 
-        var pumpOn = ent.Comp1.Enabled && _receiver.IsPowered(ent.Owner);
+        // Match the run gate (any supply), so a brownout-throttled pump still reads as running.
+        var pumpOn = ent.Comp1.Enabled && _receiver.GetSupplyRatio(ent.Owner) > 0f;
         _appearance.SetData(ent, PumpVisuals.Enabled, pumpOn, ent.Comp2);
     }
 

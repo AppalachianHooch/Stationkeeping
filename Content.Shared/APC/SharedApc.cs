@@ -236,6 +236,13 @@ namespace Content.Shared.APC
         ApcPowerTierState State,
         ApcPowerPriorityOverride Override);
 
+    /// <summary>Localization helpers for APC load-tier display, shared by the APC menu and power monitor.</summary>
+    public static class ApcPowerTierLoc
+    {
+        public static string Priority(ApcPowerPriority priority) => Loc.GetString($"apc-power-priority-{priority}");
+        public static string State(ApcPowerTierState state) => Loc.GetString($"apc-power-tier-state-{state}");
+    }
+
     [Serializable, NetSerializable]
     public sealed class ApcSetTierOverrideMessage(ApcPowerPriority priority, ApcPowerPriorityOverride priorityOverride)
         : BoundUserInterfaceMessage

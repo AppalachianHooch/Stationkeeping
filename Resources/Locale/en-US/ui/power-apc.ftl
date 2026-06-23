@@ -27,3 +27,15 @@ apc-menu-tiers-col-override = Override
 apc-menu-tiers-override-auto = Auto
 apc-menu-tiers-override-force-on = Force On
 apc-menu-tiers-override-force-off = Force Off
+
+# Load tier priorities
+apc-power-priority-LifeSafety = Life Safety
+apc-power-priority-Environment = Environment
+apc-power-priority-Equipment = Equipment
+apc-power-priority-Lighting = Lighting
+apc-power-priority-Comfort = Comfort
+
+# Load tier states
+apc-power-tier-state-Full = Full
+apc-power-tier-state-Brownout = Brownout
+apc-power-tier-state-Shed = Shed

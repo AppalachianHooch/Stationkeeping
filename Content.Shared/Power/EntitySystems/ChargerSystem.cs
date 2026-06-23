@@ -171,14 +171,16 @@ public sealed partial class ChargerSystem : EntitySystem
         SharedApcPowerReceiverComponent? receiver = null;
         _receiver.ResolveApc(chargerUid, ref receiver);
 
-        if (!chargerComp.Portable && (receiver == null || !receiver.Powered))
+        // SupplyRatio is already clamped to 0..1, and is 1 when there is no receiver.
+        var supplyRatio = receiver?.SupplyRatio ?? 1f;
+
+        // Gate on delivered supply, not the powered flag, so a brownout charges proportionally.
+        if (!chargerComp.Portable && supplyRatio <= 0f)
             return;
 
         if (_whitelist.IsWhitelistFail(chargerComp.Whitelist, ent.Owner))
             return;
 
-        // SupplyRatio is already clamped to 0..1, and is 1 when there is no receiver.
-        var supplyRatio = receiver?.SupplyRatio ?? 1f;
         args.NewChargeRate += chargerComp.ChargeRate * supplyRatio;
     }
     private void OnStatusChanged(Entity<InsideChargerComponent> ent, ref BatteryStateChangedEvent args)

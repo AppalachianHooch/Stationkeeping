@@ -137,11 +137,10 @@ public sealed partial class ApcSystem : EntitySystem
         }
 
         component.TierOverrides[args.Priority] = args.Override;
-        Dirty(uid, component);
         UpdateUIState(uid, component);
 
         _adminLogger.Add(LogType.ItemConfigure, LogImpact.Medium,
-            $"{ToPrettyString(args.Actor):user} set {ToPrettyString(uid):entity} {args.Priority:priority} power override to {args.Override:state}.");
+            $"{ToPrettyString(args.Actor):user} set {ToPrettyString(uid):entity} {args.Priority.ToString():priority} power override to {args.Override.ToString():state}.");
     }
 
     public ApcPowerPriorityOverride GetTierOverride(Entity<ApcComponent> ent, ApcPowerPriority priority)

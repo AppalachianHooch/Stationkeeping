@@ -20,6 +20,8 @@ namespace Content.Client.Power.APC.UI
         public event Action? OnBreaker;
         public event Action<ApcPowerPriority, ApcPowerPriorityOverride>? OnTierOverride;
 
+        private readonly List<(Label Req, Label Eff, Label State, OptionButton Override)> _tierRows = new();
+
         public ApcMenu()
         {
             IoCManager.InjectDependencies(this);
@@ -85,7 +87,16 @@ namespace Content.Client.Power.APC.UI
 
         private void UpdateTierRows(ApcBoundInterfaceState state)
         {
+            if (_tierRows.Count != state.Tiers.Length)
+                RebuildTierRows(state);
+            else
+                RefreshTierValues(state);
+        }
+
+        private void RebuildTierRows(ApcBoundInterfaceState state)
+        {
             TierContainer.RemoveAllChildren();
+            _tierRows.Clear();
 
             TierContainer.AddChild(new Label
             {
@@ -102,10 +113,9 @@ namespace Content.Client.Power.APC.UI
 
             foreach (var tier in state.Tiers)
             {
-                table.AddChild(new Label { Text = tier.Priority.ToString() });
-                table.AddChild(new Label { Text = MathF.Ceiling(tier.RequestedPower).ToString() });
-                table.AddChild(new Label { Text = MathF.Ceiling(tier.EffectivePower).ToString() });
-                table.AddChild(new Label { Text = $"{tier.State} {tier.ShedRatio:P0}" });
+                var reqLabel = new Label { Text = MathF.Ceiling(tier.RequestedPower).ToString() };
+                var effLabel = new Label { Text = MathF.Ceiling(tier.EffectivePower).ToString() };
+                var stateLabel = new Label { Text = $"{ApcPowerTierLoc.State(tier.State)} {tier.ShedRatio:P0}" };
 
                 var overrideButton = new OptionButton();
                 overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-auto"), (int) ApcPowerPriorityOverride.Auto);
@@ -114,10 +124,30 @@ namespace Content.Client.Power.APC.UI
                 overrideButton.SelectId((int) tier.Override);
                 var priority = tier.Priority;
                 overrideButton.OnItemSelected += args => OnTierOverride?.Invoke(priority, (ApcPowerPriorityOverride) args.Id);
+
+                table.AddChild(new Label { Text = ApcPowerTierLoc.Priority(tier.Priority) });
+                table.AddChild(reqLabel);
+                table.AddChild(effLabel);
+                table.AddChild(stateLabel);
                 table.AddChild(overrideButton);
+
+                _tierRows.Add((reqLabel, effLabel, stateLabel, overrideButton));
             }
 
             TierContainer.AddChild(table);
+        }
+
+        private void RefreshTierValues(ApcBoundInterfaceState state)
+        {
+            for (var i = 0; i < state.Tiers.Length; i++)
+            {
+                var tier = state.Tiers[i];
+                var (req, eff, stateLabel, overrideBtn) = _tierRows[i];
+                req.Text = MathF.Ceiling(tier.RequestedPower).ToString();
+                eff.Text = MathF.Ceiling(tier.EffectivePower).ToString();
+                stateLabel.Text = $"{ApcPowerTierLoc.State(tier.State)} {tier.ShedRatio:P0}";
+                overrideBtn.SelectId((int) tier.Override);
+            }
         }
 
         public void SetAccessEnabled(bool hasAccess)

@@ -1577,5 +1577,155 @@ namespace Content.IntegrationTests.Tests.Power
             await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.False));
         }
 
+        // Load sheds when demand exceeds the APC's MaxSupply even while it draws grid passthrough.
+        [Test]
+        public async Task ApcShedsDespiteUpstreamPassthrough()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            PowerNetworkBatteryComponent apcNetBattery = default!;
+            ApcPowerReceiverComponent lifeSafety = default!;
+            ApcPowerReceiverComponent comfort = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 6;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                // Upstream chain: generator -> substation -> APC (so the APC charges, giving non-zero passthrough).
+                entityManager.SpawnEntity("CableHV", grid.Owner.ToCoordinates(0, 0));
+                entityManager.SpawnEntity("CableHV", grid.Owner.ToCoordinates(0, 1));
+                entityManager.SpawnEntity("CableMV", grid.Owner.ToCoordinates(0, 1));
+                entityManager.SpawnEntity("CableMV", grid.Owner.ToCoordinates(0, 2));
+
+                var generatorEnt = entityManager.SpawnEntity("GeneratorDummy", grid.Owner.ToCoordinates(0, 0));
+                var substationEnt = entityManager.SpawnEntity("SubstationDummy", grid.Owner.ToCoordinates(0, 1));
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 2));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 2));
+                var lifeEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, 3));
+                var comfortEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, 4));
+
+                // Generous upstream supply so the APC, not the grid, is the bottleneck.
+                var generator = entityManager.GetComponent<PowerSupplierComponent>(generatorEnt);
+                generator.MaxSupply = 1_000_000;
+                generator.SupplyRampTolerance = 1_000_000;
+
+                var substationBattery = entityManager.GetComponent<BatteryComponent>(substationEnt);
+                var substationNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(substationEnt);
+                batterySys.SetMaxCharge((substationEnt, substationBattery), 1_000_000);
+                batterySys.SetCharge((substationEnt, substationBattery), 1_000_000);
+                substationNetBattery.MaxSupply = 1_000_000;
+                substationNetBattery.MaxChargeRate = 1_000_000;
+                substationNetBattery.SupplyRampTolerance = 1_000_000;
+
+                apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                var apcBattery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                // Big reserve started part-full so the APC keeps drawing passthrough current the whole test.
+                batterySys.SetMaxCharge((apcEnt, apcBattery), 1_000_000);
+                batterySys.SetCharge((apcEnt, apcBattery), 500_000);
+                apcNetBattery.MaxSupply = 1000;
+                apcNetBattery.SupplyRampTolerance = 1000;
+
+                lifeSafety = entityManager.GetComponent<ApcPowerReceiverComponent>(lifeEnt);
+                comfort = entityManager.GetComponent<ApcPowerReceiverComponent>(comfortEnt);
+                lifeSafety.Load = 600;
+                lifeSafety.LoadPriority = ApcPowerPriority.LifeSafety;
+                comfort.Load = 600;
+                comfort.LoadPriority = ApcPowerPriority.Comfort;
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(lifeEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(comfortEnt, range);
+            });
+
+            server.RunTicks(10);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    // The APC is genuinely relaying upstream power (passthrough present)...
+                    Assert.That(apcNetBattery.CurrentReceiving, Is.GreaterThan(200));
+                    // ...yet total demand (1200) exceeds the APC's 1000 W rating, so the lowest tier still sheds.
+                    Assert.That(lifeSafety.SupplyRatio, Is.GreaterThan(0.99f));
+                    Assert.That(comfort.ShedState, Is.EqualTo(ApcPowerTierState.Brownout));
+                    Assert.That(comfort.SupplyRatio, Is.LessThan(0.9f));
+                });
+            });
+        }
+
+        // A brownout slows a lathe (bounded), and below the floor cuts it off instead of near-halting it.
+        [Test]
+        public async Task BrownoutSlowsLatheButCutsOffBelowFloor()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            PowerNetworkBatteryComponent apcNetBattery = default!;
+            Content.Shared.Lathe.LatheComponent lathe = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var latheEnt = entityManager.SpawnEntity("Autolathe", grid.Owner.ToCoordinates(0, range - 1));
+
+                lathe = entityManager.GetComponent<Content.Shared.Lathe.LatheComponent>(latheEnt);
+                var receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(latheEnt);
+                receiver.Load = 150;
+                receiver.LoadPriority = ApcPowerPriority.Equipment;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(latheEnt, range);
+
+                // 90 W of 150 W demand -> shedRatio 0.6 -> slowed but powered.
+                apcNetBattery.MaxSupply = 90f;
+                apcNetBattery.SupplyRampTolerance = 90f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    // 1 / 0.6 == ~1.67x slower, and well under the 1/0.25 == 4x floor cap.
+                    Assert.That(lathe.TimeMultiplier, Is.EqualTo(1f / 0.6f).Within(0.1f));
+                    Assert.That(lathe.TimeMultiplier, Is.LessThanOrEqualTo(4f));
+                });
+            });
+
+            // Drop below the floor: 30 W of 150 W -> shedRatio 0.2 < 0.25 -> cut off, multiplier restored.
+            await server.WaitAssertion(() => apcNetBattery.MaxSupply = 30f);
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+                Assert.That(lathe.TimeMultiplier, Is.EqualTo(1f).Within(0.01f)));
+        }
     }
 }

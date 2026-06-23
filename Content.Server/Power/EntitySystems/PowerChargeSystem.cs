@@ -114,9 +114,11 @@ public sealed partial class PowerChargeSystem : EntitySystem
             float chargeRate;
             if (chargingMachine.SwitchedOn)
             {
-                // SupplyRatio is already clamped to 0..1; full supply charges, no supply discharges.
+                // Full supply charges; any deficit discharges proportionally so brownouts visibly drain the machine.
                 var ratio = powerReceiver.SupplyRatio;
-                chargeRate = chargingMachine.ChargeRate * (ratio * 2f - 1f);
+                chargeRate = ratio >= 1f || MathHelper.CloseTo(ratio, 1f)
+                    ? chargingMachine.ChargeRate
+                    : -chargingMachine.ChargeRate * (1f - ratio);
             }
             else
             {
@@ -190,7 +192,8 @@ public sealed partial class PowerChargeSystem : EntitySystem
         else
         {
             var diff = chargeTarget - component.Charge;
-            chargeEta = (short) Math.Abs(diff / chargeRate);
+            // Clamp before the cast: near break-even the ETA can exceed short range and would otherwise wrap.
+            chargeEta = (short) Math.Clamp(Math.Abs(diff / chargeRate), 0f, short.MaxValue);
         }
 
         var status = chargeRate switch
@@ -199,7 +202,7 @@ public sealed partial class PowerChargeSystem : EntitySystem
             < 0 when atTarget => PowerChargePowerStatus.Off,
             > 0 => PowerChargePowerStatus.Charging,
             < 0 => PowerChargePowerStatus.Discharging,
-            _ => PowerChargePowerStatus.Charging, // break-even at 50% supply
+            _ => PowerChargePowerStatus.Charging, // exact break-even
         };
 
         var state = new PowerChargeState(

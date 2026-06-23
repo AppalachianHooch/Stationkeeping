@@ -346,7 +346,7 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
         }
     }
 
-    private void OnPowerChanged(EntityUid uid, PoweredLightComponent component, ref PowerChangedEvent args)
+    protected virtual void OnPowerChanged(EntityUid uid, PoweredLightComponent component, ref PowerChangedEvent args)
     {
         // TODO: Power moment
         var metadata = MetaData(uid);
@@ -363,7 +363,7 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
             args.Affected = true;
     }
 
-    private void SetLight(EntityUid uid, bool value, Color? color = null, PoweredLightComponent? light = null, float? radius = null, float? energy = null, float? softness = null)
+    protected void SetLight(EntityUid uid, bool value, Color? color = null, PoweredLightComponent? light = null, float? radius = null, float? energy = null, float? softness = null)
     {
         if (!Resolve(uid, ref light))
             return;

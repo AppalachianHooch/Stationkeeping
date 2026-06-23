@@ -38,8 +38,8 @@ namespace Content.Server.Power.EntitySystems
         [
             ApcPowerPriority.LifeSafety,
             ApcPowerPriority.Environment,
-            ApcPowerPriority.Equipment,
             ApcPowerPriority.Lighting,
+            ApcPowerPriority.Equipment,
             ApcPowerPriority.Comfort,
         ];
 
@@ -433,13 +433,15 @@ namespace Content.Server.Power.EntitySystems
 
         private static float GetAvailableApcSupply(PowerState.Battery battery, float frameTime)
         {
+            // Shed budget capped at rated MaxSupply; transient grid passthrough must not count as headroom.
             if (!battery.Enabled || !battery.CanDischarge || battery.Paused || frameTime <= 0f)
                 return 0f;
 
             var scaledSpace = battery.CurrentStorage / frameTime;
-            var supplyCap = Math.Min(battery.MaxSupply, battery.SupplyRampPosition + battery.SupplyRampTolerance);
-            var supplyAndPassthrough = supplyCap + battery.CurrentReceiving * battery.Efficiency;
-            return Math.Max(0f, Math.Min(scaledSpace, supplyAndPassthrough));
+            var passthrough = battery.CurrentReceiving * battery.Efficiency;
+            var rampCap = battery.SupplyRampPosition + battery.SupplyRampTolerance;
+            var dischargeCap = Math.Min(scaledSpace - passthrough, rampCap);
+            return Math.Max(0f, Math.Min(battery.MaxSupply, dischargeCap + passthrough));
         }
 
         private void ReconnectNetworks()
