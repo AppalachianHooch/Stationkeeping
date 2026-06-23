@@ -24,6 +24,9 @@ public sealed partial class ReagentPipeConnectorSystem : EntitySystem
     [Dependency] private NodeContainerSystem _nodeContainer = default!;
     [Dependency] private SharedSolutionContainerSystem _solution = default!;
 
+    // Nets pressurized this tick, so line pressure is the max of every regulator on a net, not just the last one seen.
+    private readonly HashSet<ReagentPipeNet> _pressurizedThisTick = new();
+
     public override void Initialize()
     {
         base.Initialize();
@@ -94,6 +97,8 @@ public sealed partial class ReagentPipeConnectorSystem : EntitySystem
     {
         base.Update(frameTime);
 
+        _pressurizedThisTick.Clear();
+
         var query = EntityQueryEnumerator<ReagentPipeConnectorComponent, NodeContainerComponent>();
         while (query.MoveNext(out var uid, out var comp, out var nodes))
         {
@@ -114,8 +119,11 @@ public sealed partial class ReagentPipeConnectorSystem : EntitySystem
             {
                 // The input connector is the regulator: it pressurizes the line and feeds faster the higher
                 // the pressure is set. Baseline (0.5) moves the rated rate; full pressure moves half again as much.
-                net.Pressure = Math.Clamp(comp.Pressure, 0f, 1f);
-                DrainIntoNet(comp.Solution.Value, net, comp.TransferRate * (0.5f + net.Pressure));
+                // The line runs at the strongest regulator, so multiple inputs aggregate to the max instead of
+                // racing to overwrite each other based on enumeration order.
+                var pressure = Math.Clamp(comp.Pressure, 0f, 1f);
+                net.Pressure = _pressurizedThisTick.Add(net) ? pressure : MathF.Max(net.Pressure, pressure);
+                DrainIntoNet(comp.Solution.Value, net, comp.TransferRate * (0.5f + pressure));
             }
             else
             {

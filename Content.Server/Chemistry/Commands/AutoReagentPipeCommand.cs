@@ -18,7 +18,7 @@ public sealed class AutoReagentPipeCommand : IConsoleCommand
 
     public string Command => "autoreagentpipe";
     public string Description => "Auto-lays an L-shaped reagent pipe run between two tiles on the grid you're on.";
-    public string Help => $"{Command} <fuel|coolant|rcs|reagent> <x1> <y1> <x2> <y2>";
+    public string Help => $"{Command} <reagent> <x1> <y1> <x2> <y2>";
 
     public void Execute(IConsoleShell shell, string argStr, string[] args)
     {
@@ -31,21 +31,12 @@ public sealed class AutoReagentPipeCommand : IConsoleCommand
         ReagentPipeLayout layout;
         switch (args[0].ToLowerInvariant())
         {
-            case "fuel":
-                layout = new ReagentPipeLayout("FuelPipeStraight", "FuelPipeBend");
-                break;
-            case "coolant":
-                layout = new ReagentPipeLayout("CoolantPipeStraight", "CoolantPipeBend");
-                break;
-            case "rcs":
-                layout = new ReagentPipeLayout("RcsPipeStraight", "RcsPipeBend");
-                break;
             case "reagent":
                 layout = new ReagentPipeLayout("ReagentPipeStraight", "ReagentPipeBend",
                     "ReagentPipeTJunction", "ReagentPipeFourway");
                 break;
             default:
-                shell.WriteError($"Unknown pipe type '{args[0]}'. Expected fuel|coolant|rcs|reagent.");
+                shell.WriteError($"Unknown pipe type '{args[0]}'. Expected reagent.");
                 return;
         }
 

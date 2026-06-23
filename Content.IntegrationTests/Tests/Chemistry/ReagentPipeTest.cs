@@ -128,6 +128,24 @@ public sealed class ReagentPipeTest : GameTest
         nodeGroupID: ReagentPipe
         pipeDirection: North
   - type: ReagentPipeValve
+
+- type: entity
+  id: TestReagentPipeValveOpen
+  components:
+  - type: Transform
+    anchored: true
+  - type: NodeContainer
+    nodes:
+      inlet:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: South
+      outlet:
+        !type:ReagentPipeNode
+        nodeGroupID: ReagentPipe
+        pipeDirection: North
+  - type: ReagentPipeValve
+    open: true
 ";
 
     [Test]
@@ -210,6 +228,38 @@ public sealed class ReagentPipeTest : GameTest
             Assert.That(highNet.Pressure, Is.EqualTo(1f), "The input regulator should pressurize its line.");
             Assert.That(highNet.Reagents.Volume, Is.GreaterThan(lowNet.Reagents.Volume),
                 "A higher-pressure regulator should feed reagents into the line faster.");
+        });
+    }
+
+    [Test]
+    public async Task MultipleRegulatorsAggregateToMaxPressure()
+    {
+        EntityUid high = default, low = default;
+
+        await Server.WaitAssertion(() =>
+        {
+            // Two input regulators on adjacent pipes share one net.
+            BuildLine(2, out var grid);
+            high = SEntMan.SpawnEntity("TestReagentPipeInput", grid.ToCoordinates(0, 0));
+            low = SEntMan.SpawnEntity("TestReagentPipeInput", grid.ToCoordinates(0, 1));
+        });
+
+        await RunTicksSync(2);
+        await Server.WaitAssertion(() =>
+        {
+            var sys = SEntMan.System<ReagentPipeConnectorSystem>();
+            sys.SetPressure((high, SComp<ReagentPipeConnectorComponent>(high)), 1f);
+            sys.SetPressure((low, SComp<ReagentPipeConnectorComponent>(low)), 0.2f);
+        });
+
+        await RunSeconds(1.5f);
+
+        await Server.WaitAssertion(() =>
+        {
+            // Line pressure is the strongest regulator regardless of enumeration order, not whichever ran last.
+            Assert.That(GetNet(high, "pipe"), Is.SameAs(GetNet(low, "pipe")), "Both regulators should share one net.");
+            Assert.That(GetNet(high, "pipe").Pressure, Is.EqualTo(1f),
+                "Line pressure should aggregate to the highest regulator, not the last one processed.");
         });
     }
 
@@ -337,6 +387,41 @@ public sealed class ReagentPipeTest : GameTest
         {
             Assert.That(GetNet(source, "pipe"), Is.SameAs(GetNet(dest, "pipe")),
                 "Opening the valve should merge the two nets into one.");
+
+            // Toggle again: closing the valve should split the merged net back apart.
+            var ev = new ActivateInWorldEvent(user, valve, complex: true);
+            SEntMan.EventBus.RaiseLocalEvent(valve, ev);
+        });
+
+        await RunTicksSync(2);
+
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(GetNet(source, "pipe"), Is.Not.SameAs(GetNet(dest, "pipe")),
+                "Closing the valve should split the nets back apart.");
+        });
+    }
+
+    [Test]
+    public async Task ValveOpenAtMapInitMergesNets()
+    {
+        EntityUid source = default, dest = default;
+
+        await Server.WaitAssertion(() =>
+        {
+            BuildLine(3, out var grid);
+            source = SEntMan.SpawnEntity("TestReagentPipe", grid.ToCoordinates(0, 0));
+            SEntMan.SpawnEntity("TestReagentPipeValveOpen", grid.ToCoordinates(0, 1));
+            dest = SEntMan.SpawnEntity("TestReagentPipe", grid.ToCoordinates(0, 2));
+        });
+
+        await RunTicksSync(2);
+
+        await Server.WaitAssertion(() =>
+        {
+            // A valve that starts open must link its nets during MapInit, with no activation needed.
+            Assert.That(GetNet(source, "pipe"), Is.SameAs(GetNet(dest, "pipe")),
+                "A valve spawned open should merge its nets on map init.");
         });
     }
 

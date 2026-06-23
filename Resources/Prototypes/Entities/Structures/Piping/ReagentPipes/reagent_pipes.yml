@@ -20,7 +20,8 @@
     damageModifierSet: Metallic
   - type: Injurable
     damageContainer: StructuralInorganic
-  - type: SubFloorHide
+  # Reagent distribution runs overhead on the ceiling layer, clear of the crowded subfloor.
+  - type: CeilingLayer
   - type: CollideOnAnchor
   - type: Anchorable
   - type: Rotatable
@@ -40,8 +41,7 @@
         acts: ["Destruction"]
   - type: Sprite
     sprite: Structures/Piping/ReagentPipes/reagent_pipe.rsi
-    drawdepth: ThinPipe
-    visible: false
+    drawdepth: Overdoors
   - type: NodeContainer
   - type: Physics
     canCollide: false

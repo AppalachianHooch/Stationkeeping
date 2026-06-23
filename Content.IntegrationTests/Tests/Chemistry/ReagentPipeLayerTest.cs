@@ -22,7 +22,8 @@ namespace Content.IntegrationTests.Tests.Chemistry;
 [TestFixture]
 public sealed class ReagentPipeLayerTest : GameTest
 {
-    private static readonly ReagentPipeLayout Fuel = new("FuelPipeStraight", "FuelPipeBend");
+    // A straight+bend-only layout (no junction fittings), to exercise non-branching runs.
+    private static readonly ReagentPipeLayout Line = new("ReagentPipeStraight", "ReagentPipeBend");
     private static readonly ReagentPipeLayout Reagent =
         new("ReagentPipeStraight", "ReagentPipeBend", "ReagentPipeTJunction", "ReagentPipeFourway");
 
@@ -32,7 +33,7 @@ public sealed class ReagentPipeLayerTest : GameTest
         EntityUid grid = default;
         var tiles = ReagentPipeLayerSystem.LShape(new Vector2i(0, 0), new Vector2i(3, 2));
 
-        await Server.WaitPost(() => grid = BuildAndLay(tiles, Fuel));
+        await Server.WaitPost(() => grid = BuildAndLay(tiles, Line));
         await RunTicksSync(3);
 
         await Server.WaitAssertion(() =>
@@ -79,9 +80,9 @@ public sealed class ReagentPipeLayerTest : GameTest
             all.UnionWith(right);
             grid = MakeGrid(all);
             var layer = SEntMan.System<ReagentPipeLayerSystem>();
-            // Two separate fuel networks, one tile apart.
-            layer.LayNetwork((grid, SComp<MapGridComponent>(grid)), left, Fuel);
-            layer.LayNetwork((grid, SComp<MapGridComponent>(grid)), right, Fuel);
+            // Two separate networks, one tile apart.
+            layer.LayNetwork((grid, SComp<MapGridComponent>(grid)), left, Line);
+            layer.LayNetwork((grid, SComp<MapGridComponent>(grid)), right, Line);
         });
         await RunTicksSync(3);
 
