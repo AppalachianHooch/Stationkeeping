@@ -1,0 +1,23 @@
+{
+    "version": 1,
+    "license": "CC-BY-SA-3.0",
+    "copyright": "Based on Structures/Piping/Atmospherics/pump.rsi, modified for Ships Worth Breaking.",
+    "size": {
+        "x": 32,
+        "y": 32
+    },
+    "states": [
+        {
+            "name": "pumpPressure",
+            "directions": 4
+        },
+        {
+            "name": "pumpManualValve",
+            "directions": 4
+        },
+        {
+            "name": "pumpVolume",
+            "directions": 4
+        }
+    ]
+}

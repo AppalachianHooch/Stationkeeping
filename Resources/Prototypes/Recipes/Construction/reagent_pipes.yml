@@ -1,0 +1,126 @@
+# REAGENT PIPES
+- type: construction
+  id: ReagentPipeStraight
+  graph: ReagentPipe
+  startNode: start
+  targetNode: straight
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipeBend
+  graph: ReagentPipe
+  startNode: start
+  targetNode: bend
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipeTJunction
+  graph: ReagentPipe
+  startNode: start
+  targetNode: tjunction
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipeFourway
+  graph: ReagentPipe
+  startNode: start
+  targetNode: fourway
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipePump
+  graph: ReagentPipe
+  startNode: start
+  targetNode: pump
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipeValve
+  graph: ReagentPipe
+  startNode: start
+  targetNode: valve
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: FuelPipeStraight
+  graph: ReagentPipe
+  startNode: start
+  targetNode: fuelStraight
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: FuelPipeBend
+  graph: ReagentPipe
+  startNode: start
+  targetNode: fuelBend
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipeStraight
+  graph: ReagentPipe
+  startNode: start
+  targetNode: coolantStraight
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipeBend
+  graph: ReagentPipe
+  startNode: start
+  targetNode: coolantBend
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: RcsPipeStraight
+  graph: ReagentPipe
+  startNode: start
+  targetNode: rcsStraight
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: RcsPipeBend
+  graph: ReagentPipe
+  startNode: start
+  targetNode: rcsBend
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipeInputPort
+  graph: ReagentPipe
+  startNode: start
+  targetNode: inputPort
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: ReagentPipeOutputPort
+  graph: ReagentPipe
+  startNode: start
+  targetNode: outputPort
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
