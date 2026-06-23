@@ -7,7 +7,7 @@
     <BoxContainer Orientation="Vertical">
         <!-- Top row: main content -->
         <BoxContainer Name="MainContent" Orientation="Horizontal" VerticalExpand="True" Margin="4">
-            <!-- Left pane: I/O, passthrough, sprite view -->
+            <!-- Left pane: I/O, sprite view -->
             <BoxContainer Name="IOPane" Orientation="Vertical" HorizontalExpand="True">
                 <!-- Top row: input -->
                 <BoxContainer Name="InputRow" Orientation="Horizontal">
@@ -28,15 +28,9 @@
                     </PanelContainer>
                 </BoxContainer>
 
-                <!-- Middle row: Entity view & passthrough -->
+                <!-- Middle row: Entity view -->
                 <BoxContainer Name="MiddleRow" Orientation="Horizontal" VerticalExpand="True">
                     <SpriteView Name="EntityView" SetSize="64 64" Scale="2 2" OverrideDirection="South" Margin="15" />
-
-                    <BoxContainer Orientation="Vertical" VerticalAlignment="Center" HorizontalExpand="True"
-                                  HorizontalAlignment="Right">
-                        <Label HorizontalAlignment="Right" Text="{Loc 'battery-menu-passthrough'}" StyleClasses="StatusFieldTitle" />
-                        <Label HorizontalAlignment="Right" Name="PassthroughValue" />
-                    </BoxContainer>
                 </BoxContainer>
 
                 <!-- Bottom row: output -->
@@ -62,7 +56,7 @@
             <!-- Separator connecting panes with some wires -->
             <BoxContainer Orientation="Vertical" SetWidth="22" Margin="2 16">
                 <PanelContainer Name="InSecondPowerLine" SetHeight="2" />
-                <PanelContainer Name="PassthroughPowerLine" SetWidth="2" HorizontalAlignment="Center" VerticalExpand="True" />
+                <Control VerticalExpand="True" />
                 <PanelContainer Name="OutSecondPowerLine" SetHeight="2" />
             </BoxContainer>
 

@@ -7,7 +7,6 @@ battery-menu-in = IN
 battery-menu-charge-header = Charge Circuit
 battery-menu-discharge-header = Discharge Circuit
 battery-menu-storage-header = Storage Cells
-battery-menu-passthrough = Passthrough
 battery-menu-max = Max:
 battery-menu-current = Current:
 battery-menu-stored = Stored:

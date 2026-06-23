@@ -1200,6 +1200,9 @@ namespace Content.IntegrationTests.Tests.Power
                 batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
 
                 receiver.Load = 100;
+                // Environment tier so brownout cycling (Equipment-only) doesn't keep it powered; this test
+                // covers raw partial-supply tracking, not brownout.
+                receiver.LoadPriority = ApcPowerPriority.Environment;
                 apcNetBattery.MaxSupply = 50;
                 apcNetBattery.SupplyRampTolerance = 50;
             });
@@ -1375,6 +1378,8 @@ namespace Content.IntegrationTests.Tests.Power
 
                 receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(powerReceiverEnt);
                 receiver.Load = 100;
+                // Environment tier so brownout cycling (Equipment-only) doesn't override the thresholds under test.
+                receiver.LoadPriority = ApcPowerPriority.Environment;
                 receiver.PowerOffThreshold = 0.5f;
                 receiver.PowerOnThreshold = 0.75f;
 
@@ -1556,6 +1561,372 @@ namespace Content.IntegrationTests.Tests.Power
 
             await server.WaitAssertion(() =>
                 Assert.That(lathe.TimeMultiplier, Is.EqualTo(1f).Within(0.01f)));
+        }
+
+        // Regression: brownout must keep equipment partially powered, not stick it off forever.
+        [Test]
+        public async Task BrownoutEquipmentStaysPoweredWhilePartiallyShed()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            ApcPowerReceiverComponent equipment = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var equipmentEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+
+                equipment = entityManager.GetComponent<ApcPowerReceiverComponent>(equipmentEnt);
+                equipment.Load = 150;
+                equipment.LoadPriority = ApcPowerPriority.Equipment;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(equipmentEnt, range);
+
+                // 90 W of 150 W demand -> shedRatio 0.6, above the 0.5 cycling floor.
+                apcNetBattery.MaxSupply = 90f;
+                apcNetBattery.SupplyRampTolerance = 90f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    // On the cycle's on-phase the device is powered and drawing its shed share, not stuck off.
+                    Assert.That(equipment.Powered, Is.True);
+                    Assert.That(equipment.SupplyRatio, Is.GreaterThan(0f));
+                });
+            });
+        }
+
+        // ForceOff sheds a tier even when the APC has surplus power.
+        [Test]
+        public async Task ApcForceOffShedsTierDespiteSurplus()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            ApcPowerReceiverComponent lifeSafety = default!;
+            ApcPowerReceiverComponent comfort = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var lifeEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+                var comfortEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 2));
+
+                lifeSafety = entityManager.GetComponent<ApcPowerReceiverComponent>(lifeEnt);
+                comfort = entityManager.GetComponent<ApcPowerReceiverComponent>(comfortEnt);
+                lifeSafety.Load = 100;
+                lifeSafety.LoadPriority = ApcPowerPriority.LifeSafety;
+                comfort.Load = 100;
+                comfort.LoadPriority = ApcPowerPriority.Comfort;
+
+                var apc = entityManager.GetComponent<ApcComponent>(apcEnt);
+                apc.TierOverrides[ApcPowerPriority.Comfort] = ApcPowerPriorityOverride.ForceOff;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(lifeEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(comfortEnt, range);
+
+                // Plenty of supply for both; only the override should shed Comfort.
+                apcNetBattery.MaxSupply = 1000f;
+                apcNetBattery.SupplyRampTolerance = 1000f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(lifeSafety.SupplyRatio, Is.EqualTo(1f).Within(0.01f));
+                    Assert.That(comfort.SupplyRatio, Is.EqualTo(0f).Within(0.01f));
+                    Assert.That(comfort.ShedState, Is.EqualTo(ApcPowerTierState.Shed));
+                });
+            });
+        }
+
+        // ForceOn keeps a low-priority tier in the supply pool instead of shedding it under contention.
+        [Test]
+        public async Task ApcForceOnKeepsLowPriorityTierCompeting()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            ApcPowerReceiverComponent equipment = default!;
+            ApcPowerReceiverComponent comfort = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var equipmentEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+                var comfortEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 2));
+
+                equipment = entityManager.GetComponent<ApcPowerReceiverComponent>(equipmentEnt);
+                comfort = entityManager.GetComponent<ApcPowerReceiverComponent>(comfortEnt);
+                equipment.Load = 100;
+                equipment.LoadPriority = ApcPowerPriority.Equipment;
+                comfort.Load = 100;
+                comfort.LoadPriority = ApcPowerPriority.Comfort;
+
+                var apc = entityManager.GetComponent<ApcComponent>(apcEnt);
+                apc.TierOverrides[ApcPowerPriority.Comfort] = ApcPowerPriorityOverride.ForceOn;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(equipmentEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(comfortEnt, range);
+
+                // Only enough for one tier; Auto Comfort would shed, ForceOn keeps it competing (both ~0.5).
+                apcNetBattery.MaxSupply = 100f;
+                apcNetBattery.SupplyRampTolerance = 100f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(comfort.SupplyRatio, Is.GreaterThan(0.1f));
+                    Assert.That(equipment.SupplyRatio, Is.GreaterThan(0.1f));
+                });
+            });
+        }
+
+        // Opening the main breaker sheds every tier regardless of stored charge.
+        [Test]
+        public async Task ApcBreakerOffShedsAllTiers()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var apcSys = entityManager.System<ApcSystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            EntityUid apcEnt = default!;
+            ApcPowerReceiverComponent receiver = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var receiverEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+
+                receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(receiverEnt);
+                receiver.Load = 100;
+                receiver.LoadPriority = ApcPowerPriority.LifeSafety;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(receiverEnt, range);
+
+                apcNetBattery.MaxSupply = 1000f;
+                apcNetBattery.SupplyRampTolerance = 1000f;
+            });
+
+            server.RunTicks(3);
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.True));
+
+            // Trip the breaker: even with a full reserve, nothing should be supplied.
+            await server.WaitAssertion(() => apcSys.ApcToggleBreaker(apcEnt));
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(receiver.Powered, Is.False);
+                    Assert.That(receiver.SupplyRatio, Is.EqualTo(0f).Within(0.01f));
+                });
+            });
+        }
+
+        // Destroying an APC with receivers still linked must unpower them without throwing.
+        [Test]
+        public async Task ApcDestructionUnpowersLinkedReceivers()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            EntityUid apcEnt = default!;
+            ApcPowerReceiverComponent receiver = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 5;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var receiverEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+
+                receiver = entityManager.GetComponent<ApcPowerReceiverComponent>(receiverEnt);
+                receiver.Load = 100;
+                receiver.LoadPriority = ApcPowerPriority.LifeSafety;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(receiverEnt, range);
+
+                apcNetBattery.MaxSupply = 1000f;
+                apcNetBattery.SupplyRampTolerance = 1000f;
+            });
+
+            server.RunTicks(3);
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.True));
+
+            await server.WaitAssertion(() => entityManager.DeleteEntity(apcEnt));
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() => Assert.That(receiver.Powered, Is.False));
+        }
+
+        // Overwhelming low-priority demand must not starve life-safety or environment load.
+        [Test]
+        public async Task LowPriorityLoadDoesNotStarveLifeSafety()
+        {
+            var pair = Pair;
+            var server = pair.Server;
+            var mapManager = server.ResolveDependency<IMapManager>();
+            var entityManager = server.ResolveDependency<IEntityManager>();
+            var batterySys = entityManager.System<BatterySystem>();
+            var extensionCableSystem = entityManager.System<ExtensionCableSystem>();
+            var mapSys = entityManager.System<SharedMapSystem>();
+            ApcPowerReceiverComponent lifeSafety = default!;
+            ApcPowerReceiverComponent environment = default!;
+            ApcPowerReceiverComponent comfort = default!;
+
+            await server.WaitAssertion(() =>
+            {
+                mapSys.CreateMap(out var mapId);
+                var grid = mapManager.CreateGridEntity(mapId);
+
+                const int range = 6;
+                for (var i = 0; i < range; i++)
+                    mapSys.SetTile(grid, new Vector2i(0, i), new Tile(1));
+
+                var apcEnt = entityManager.SpawnEntity("ApcDummy", grid.Owner.ToCoordinates(0, 0));
+                var apcExtensionEnt = entityManager.SpawnEntity("CableApcExtension", grid.Owner.ToCoordinates(0, 0));
+                var lifeEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 1));
+                var envEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 2));
+                var comfortEnt = entityManager.SpawnEntity("ApcPowerReceiverDummy", grid.Owner.ToCoordinates(0, range - 3));
+
+                lifeSafety = entityManager.GetComponent<ApcPowerReceiverComponent>(lifeEnt);
+                environment = entityManager.GetComponent<ApcPowerReceiverComponent>(envEnt);
+                comfort = entityManager.GetComponent<ApcPowerReceiverComponent>(comfortEnt);
+                lifeSafety.Load = 100;
+                lifeSafety.LoadPriority = ApcPowerPriority.LifeSafety;
+                environment.Load = 100;
+                environment.LoadPriority = ApcPowerPriority.Environment;
+                comfort.Load = 500;
+                comfort.LoadPriority = ApcPowerPriority.Comfort;
+
+                var battery = entityManager.GetComponent<BatteryComponent>(apcEnt);
+                var apcNetBattery = entityManager.GetComponent<PowerNetworkBatteryComponent>(apcEnt);
+                batterySys.SetMaxCharge((apcEnt, battery), 10000);
+                batterySys.SetCharge((apcEnt, battery), battery.MaxCharge);
+
+                extensionCableSystem.SetProviderTransferRange(apcExtensionEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(lifeEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(envEnt, range);
+                extensionCableSystem.SetReceiverReceptionRange(comfortEnt, range);
+
+                // Enough for the two protected tiers only; comfort (500 W) must shed.
+                apcNetBattery.MaxSupply = 200f;
+                apcNetBattery.SupplyRampTolerance = 200f;
+            });
+
+            server.RunTicks(3);
+
+            await server.WaitAssertion(() =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(lifeSafety.SupplyRatio, Is.EqualTo(1f).Within(0.01f));
+                    Assert.That(environment.SupplyRatio, Is.EqualTo(1f).Within(0.01f));
+                    Assert.That(comfort.SupplyRatio, Is.EqualTo(0f).Within(0.01f));
+                });
+            });
         }
     }
 }

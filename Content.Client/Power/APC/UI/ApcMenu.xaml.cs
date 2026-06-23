@@ -22,6 +22,8 @@ namespace Content.Client.Power.APC.UI
 
         private readonly List<(Label Req, Label Eff, Label State, OptionButton Override)> _tierRows = new();
 
+        private bool _hasAccess;
+
         public ApcMenu()
         {
             IoCManager.InjectDependencies(this);
@@ -122,6 +124,7 @@ namespace Content.Client.Power.APC.UI
                 overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-force-on"), (int) ApcPowerPriorityOverride.ForceOn);
                 overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-force-off"), (int) ApcPowerPriorityOverride.ForceOff);
                 overrideButton.SelectId((int) tier.Override);
+                ApplyAccess(overrideButton);
                 var priority = tier.Priority;
                 overrideButton.OnItemSelected += args => OnTierOverride?.Invoke(priority, (ApcPowerPriorityOverride) args.Id);
 
@@ -152,16 +155,20 @@ namespace Content.Client.Power.APC.UI
 
         public void SetAccessEnabled(bool hasAccess)
         {
-            if(hasAccess)
-            {
-                BreakerButton.Disabled = false;
-                BreakerButton.ToolTip = null;
-            }
-            else
-            {
-                BreakerButton.Disabled = true;
-                BreakerButton.ToolTip = Loc.GetString("apc-component-insufficient-access");
-            }
+            _hasAccess = hasAccess;
+
+            BreakerButton.Disabled = !hasAccess;
+            BreakerButton.ToolTip = hasAccess ? null : Loc.GetString("apc-component-insufficient-access");
+
+            // Tier rows may be rebuilt after this call, so RebuildTierRows re-applies access too.
+            foreach (var (_, _, _, overrideBtn) in _tierRows)
+                ApplyAccess(overrideBtn);
+        }
+
+        private void ApplyAccess(OptionButton overrideButton)
+        {
+            overrideButton.Disabled = !_hasAccess;
+            overrideButton.ToolTip = _hasAccess ? null : Loc.GetString("apc-component-insufficient-access");
         }
 
         private void UpdateChargeBarColor(float charge)

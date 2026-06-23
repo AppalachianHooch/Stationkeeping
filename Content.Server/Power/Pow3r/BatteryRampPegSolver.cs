@@ -34,6 +34,15 @@ namespace Content.Server.Power.Pow3r
             }
         }
 
+        // Battery discharge available this tick, capped at MaxSupply and stored energy.
+        // Shared with the APC shed budget so its estimate can't diverge from the solver.
+        public static float GetAvailableSupply(Battery battery, float frameTime)
+        {
+            var scaledSpace = battery.CurrentStorage / frameTime;
+            var supplyCap = Math.Min(battery.MaxSupply, battery.SupplyRampPosition + battery.SupplyRampTolerance);
+            return Math.Min(scaledSpace, supplyCap);
+        }
+
         public void Tick(float frameTime, PowerState state, IParallelManager parallel)
         {
             ClearLoadsAndSupplies(state);
@@ -175,11 +184,7 @@ namespace Content.Server.Power.Pow3r
 
                     // Incoming power charges storage and is re-supplied from it, so MaxSupply is the true
                     // output cap and the device's output slider actually bounds throughput.
-                    var scaledSpace = battery.CurrentStorage / frameTime;
-                    var supplyCap = Math.Min(battery.MaxSupply,
-                        battery.SupplyRampPosition + battery.SupplyRampTolerance);
-
-                    battery.AvailableSupply = Math.Min(scaledSpace, supplyCap);
+                    battery.AvailableSupply = GetAvailableSupply(battery, frameTime);
                     battery.LoadingNetworkDemand = unmet;
 
                     battery.MaxEffectiveSupply = Math.Min(battery.CurrentStorage / frameTime, battery.MaxSupply);

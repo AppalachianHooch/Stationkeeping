@@ -79,9 +79,10 @@ public sealed partial class BrownoutSystem : EntitySystem
         if (isNew && TryComp<ApcPowerReceiverComponent>(uid, out var receiver))
         {
             speed.OriginalTimeMultiplier = lathe.TimeMultiplier;
-            speed.OriginalThreshold = receiver.PowerOffThreshold;
+            speed.OriginalOffThreshold = receiver.PowerOffThreshold;
+            speed.OriginalOnThreshold = receiver.PowerOnThreshold;
             // Force powered so lathes run (slower) rather than cutting out entirely.
-            receiver.PowerOffThreshold = 0f;
+            SetForcePowered(receiver, true);
         }
 
         lathe.TimeMultiplier = speed.OriginalTimeMultiplier / shedRatio;
@@ -94,7 +95,10 @@ public sealed partial class BrownoutSystem : EntitySystem
 
         lathe.TimeMultiplier = speed.OriginalTimeMultiplier;
         if (TryComp<ApcPowerReceiverComponent>(uid, out var receiver))
-            receiver.PowerOffThreshold = speed.OriginalThreshold;
+        {
+            receiver.PowerOffThreshold = speed.OriginalOffThreshold;
+            receiver.PowerOnThreshold = speed.OriginalOnThreshold;
+        }
     }
 
     private void HandleCyclingEquipment(EntityUid uid, ApcPowerReceiverComponent receiver, float shedRatio)
@@ -104,9 +108,10 @@ public sealed partial class BrownoutSystem : EntitySystem
 
         if (isNew)
         {
-            cycle.OriginalThreshold = receiver.PowerOffThreshold;
+            cycle.OriginalOffThreshold = receiver.PowerOffThreshold;
+            cycle.OriginalOnThreshold = receiver.PowerOnThreshold;
             cycle.OnPhase = true;
-            receiver.PowerOffThreshold = 0f;
+            SetForcePowered(receiver, true);
             cycle.NextToggle = _gameTiming.CurTime + CycleDelay(shedRatio, onPhase: true);
         }
     }
@@ -114,7 +119,18 @@ public sealed partial class BrownoutSystem : EntitySystem
     private void OnCycleRemoved(EntityUid uid, BrownoutCycleComponent cycle, ComponentRemove args)
     {
         if (TryComp<ApcPowerReceiverComponent>(uid, out var receiver))
-            receiver.PowerOffThreshold = cycle.OriginalThreshold;
+        {
+            receiver.PowerOffThreshold = cycle.OriginalOffThreshold;
+            receiver.PowerOnThreshold = cycle.OriginalOnThreshold;
+        }
+    }
+
+    // Drive both thresholds so a cycled-off device can return: 0 forces powered, 2 forces off.
+    private static void SetForcePowered(ApcPowerReceiverComponent receiver, bool powered)
+    {
+        var threshold = powered ? 0f : 2f;
+        receiver.PowerOffThreshold = threshold;
+        receiver.PowerOnThreshold = threshold;
     }
 
     public override void Update(float frameTime)
@@ -129,8 +145,7 @@ public sealed partial class BrownoutSystem : EntitySystem
                 continue;
 
             cycle.OnPhase = !cycle.OnPhase;
-            // 0 = always powered; 2 = never powered (above any possible SupplyRatio).
-            receiver.PowerOffThreshold = cycle.OnPhase ? 0f : 2f;
+            SetForcePowered(receiver, cycle.OnPhase);
             cycle.NextToggle = curTime + CycleDelay(cycle.ShedRatio, cycle.OnPhase);
         }
     }
