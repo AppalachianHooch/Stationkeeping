@@ -114,18 +114,11 @@ public sealed partial class PowerChargeSystem : EntitySystem
             float chargeRate;
             if (chargingMachine.SwitchedOn)
             {
-                if (powerReceiver.Powered)
-                {
-                    chargeRate = chargingMachine.ChargeRate;
-                }
-                else
-                {
-                    // Scale discharge rate such that if we're at 25% active power we discharge at 75% rate.
-                    var receiving = powerReceiver.PowerReceived;
-                    var mainSystemPower = Math.Max(0, receiving - chargingMachine.IdlePowerUse);
-                    var ratio = 1 - mainSystemPower / (chargingMachine.ActivePowerUse - chargingMachine.IdlePowerUse);
-                    chargeRate = -(ratio * chargingMachine.ChargeRate);
-                }
+                // Full supply charges; any deficit discharges proportionally so brownouts visibly drain the machine.
+                var ratio = powerReceiver.SupplyRatio;
+                chargeRate = ratio >= 1f || MathHelper.CloseTo(ratio, 1f)
+                    ? chargingMachine.ChargeRate
+                    : -chargingMachine.ChargeRate * (1f - ratio);
             }
             else
             {
@@ -192,10 +185,15 @@ public sealed partial class PowerChargeSystem : EntitySystem
             chargeEta = short.MinValue; // N/A
             atTarget = true;
         }
+        else if (chargeRate == 0f)
+        {
+            chargeEta = short.MinValue; // equilibrium, no ETA
+        }
         else
         {
             var diff = chargeTarget - component.Charge;
-            chargeEta = (short) Math.Abs(diff / chargeRate);
+            // Clamp before the cast: near break-even the ETA can exceed short range and would otherwise wrap.
+            chargeEta = (short) Math.Clamp(Math.Abs(diff / chargeRate), 0f, short.MaxValue);
         }
 
         var status = chargeRate switch
@@ -204,7 +202,7 @@ public sealed partial class PowerChargeSystem : EntitySystem
             < 0 when atTarget => PowerChargePowerStatus.Off,
             > 0 => PowerChargePowerStatus.Charging,
             < 0 => PowerChargePowerStatus.Discharging,
-            _ => throw new ArgumentOutOfRangeException()
+            _ => PowerChargePowerStatus.Charging, // exact break-even
         };
 
         var state = new PowerChargeState(

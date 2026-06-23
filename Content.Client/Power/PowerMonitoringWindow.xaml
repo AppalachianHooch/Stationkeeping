@@ -75,6 +75,10 @@
                     <Label Name="TotalLoads" Text="?" Margin="10 0 0 0"/>
                 </GridContainer>
 
+                <PanelContainer Margin="0 8 0 0" StyleClasses="BackgroundPanel">
+                    <Label Name="TierSummaryText" Margin="6" Text=""/>
+                </PanelContainer>
+
                 <!-- Loads / Sources (entries added by C# code) -->
                 <TabContainer Name="MasterTabContainer" VerticalExpand="True" HorizontalExpand="True" Margin="0 10 0 0">
                     <ScrollContainer HorizontalExpand="True" Margin="8, 8, 8, 8">

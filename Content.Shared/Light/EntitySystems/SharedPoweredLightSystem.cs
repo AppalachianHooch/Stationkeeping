@@ -290,9 +290,16 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
         switch (lightBulb.State)
         {
             case LightBulbState.Normal:
-                if (powerReceiver.Powered && light.On)
+                var supplyRatio = powerReceiver.SupplyRatio;
+                if (light.On && supplyRatio > 0f)
                 {
-                    SetLight(uid, true, lightBulb.Color, light, lightBulb.LightRadius, lightBulb.LightEnergy, lightBulb.LightSoftness);
+                    SetLight(uid,
+                        true,
+                        lightBulb.Color,
+                        light,
+                        lightBulb.LightRadius,
+                        lightBulb.LightEnergy * supplyRatio,
+                        lightBulb.LightSoftness);
                     _appearance.SetData(uid, PoweredLightVisuals.BulbState, PoweredLightState.On, appearance);
                     var time = GameTiming.CurTime;
                     if (time > light.LastThunk + ThunkDelay)
@@ -339,7 +346,7 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
         }
     }
 
-    private void OnPowerChanged(EntityUid uid, PoweredLightComponent component, ref PowerChangedEvent args)
+    protected virtual void OnPowerChanged(EntityUid uid, PoweredLightComponent component, ref PowerChangedEvent args)
     {
         // TODO: Power moment
         var metadata = MetaData(uid);
@@ -356,7 +363,7 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
             args.Affected = true;
     }
 
-    private void SetLight(EntityUid uid, bool value, Color? color = null, PoweredLightComponent? light = null, float? radius = null, float? energy = null, float? softness = null)
+    protected void SetLight(EntityUid uid, bool value, Color? color = null, PoweredLightComponent? light = null, float? radius = null, float? energy = null, float? softness = null)
     {
         if (!Resolve(uid, ref light))
             return;

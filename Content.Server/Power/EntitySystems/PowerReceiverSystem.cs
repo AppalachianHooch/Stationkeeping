@@ -140,6 +140,10 @@ namespace Content.Server.Power.EntitySystems
                 Powered = component.Powered,
                 NeedsPower = component.NeedsPower,
                 PowerDisabled = component.PowerDisabled,
+                Load = component.Load,
+                ReceivingPower = component.ReceivingPower,
+                LoadPriority = component.LoadPriority,
+                ShedRatio = component.ShedRatio,
             };
         }
 

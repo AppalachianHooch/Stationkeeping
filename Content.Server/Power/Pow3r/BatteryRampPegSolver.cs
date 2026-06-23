@@ -34,6 +34,15 @@ namespace Content.Server.Power.Pow3r
             }
         }
 
+        // Battery discharge available this tick, capped at MaxSupply and stored energy.
+        // Shared with the APC shed budget so its estimate can't diverge from the solver.
+        public static float GetAvailableSupply(Battery battery, float frameTime)
+        {
+            var scaledSpace = battery.CurrentStorage / frameTime;
+            var supplyCap = Math.Min(battery.MaxSupply, battery.SupplyRampPosition + battery.SupplyRampTolerance);
+            return Math.Min(scaledSpace, supplyCap);
+        }
+
         public void Tick(float frameTime, PowerState state, IParallelManager parallel)
         {
             ClearLoadsAndSupplies(state);
@@ -113,10 +122,6 @@ namespace Content.Server.Power.Pow3r
                 demand += load.DesiredPower;
             }
 
-            // TODO: Consider having battery charge loads be processed "after" pass-through loads.
-            // This would mean that charge rate would have no impact on throughput rate like it does currently.
-            // Would require a second pass over the network, or something. Not sure.
-
             // Add demand from batteries
             foreach (var batteryId in network.BatteryLoads)
             {
@@ -177,15 +182,12 @@ namespace Content.Server.Power.Pow3r
                     if (!battery.Enabled || !battery.CanDischarge || battery.Paused)
                         continue;
 
-                    var scaledSpace = battery.CurrentStorage / frameTime;
-                    var supplyCap = Math.Min(battery.MaxSupply,
-                        battery.SupplyRampPosition + battery.SupplyRampTolerance);
-                    var supplyAndPassthrough = supplyCap + battery.CurrentReceiving * battery.Efficiency;
-
-                    battery.AvailableSupply = Math.Min(scaledSpace, supplyAndPassthrough);
+                    // Incoming power charges storage and is re-supplied from it, so MaxSupply is the true
+                    // output cap and the device's output slider actually bounds throughput.
+                    battery.AvailableSupply = GetAvailableSupply(battery, frameTime);
                     battery.LoadingNetworkDemand = unmet;
 
-                    battery.MaxEffectiveSupply = Math.Min(battery.CurrentStorage / frameTime, battery.MaxSupply + battery.CurrentReceiving * battery.Efficiency);
+                    battery.MaxEffectiveSupply = Math.Min(battery.CurrentStorage / frameTime, battery.MaxSupply);
                     totalBatterySupply += battery.AvailableSupply;
                     totalMaxBatterySupply += battery.MaxEffectiveSupply;
                 }
@@ -285,7 +287,7 @@ namespace Content.Server.Power.Pow3r
 #endif
                 battery.CurrentStorage = MathF.Max(0, battery.CurrentStorage);
 
-                battery.SupplyRampTarget = battery.MaxEffectiveSupply * relativeTargetBatteryOutput - battery.CurrentReceiving * battery.Efficiency;
+                battery.SupplyRampTarget = battery.MaxEffectiveSupply * relativeTargetBatteryOutput;
 
                 DebugTools.Assert(battery.MaxEffectiveSupply * relativeTargetBatteryOutput <= battery.LoadingNetworkDemand
                                   || MathHelper.CloseToPercent(battery.MaxEffectiveSupply * relativeTargetBatteryOutput, battery.LoadingNetworkDemand, 0.001));

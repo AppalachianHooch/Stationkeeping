@@ -26,6 +26,7 @@
     anchored: true
   - type: ApcPowerReceiver
     powerLoad: 2500
+    loadPriority: Environment
   - type: ExtensionCableReceiver
   - type: Physics
     bodyType: Static
@@ -132,6 +133,7 @@
     board: MiniGravityGeneratorCircuitboard
   - type: ApcPowerReceiver
     powerLoad: 500
+    loadPriority: Environment
   - type: PowerCharge
     idlePower: 15
     activePower: 500

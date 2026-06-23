@@ -33,6 +33,9 @@ public sealed class PowerMonitoringConsoleBoundUserInterface : BoundUserInterfac
             castState.AllEntries,
             castState.FocusSources,
             castState.FocusLoads,
+            castState.StationTiers,
+            castState.FocusedApcTiers,
+            castState.ApcsShedding,
             xform?.Coordinates);
     }
 

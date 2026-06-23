@@ -38,8 +38,11 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
 
         private void OnVolumePumpUpdated(EntityUid uid, GasVolumePumpComponent pump, ref AtmosDeviceUpdateEvent args)
         {
+            TryComp<ApcPowerReceiverComponent>(uid, out var power);
+            var supplyRatio = power?.SupplyRatio ?? 1f;
+
             if (!pump.Enabled ||
-                (TryComp<ApcPowerReceiverComponent>(uid, out var power) && !power.Powered) ||
+                supplyRatio <= 0f ||
                 !_nodeContainer.TryGetNodes(uid, pump.InletName, pump.OutletName, out PipeNode? inlet, out PipeNode? outlet))
             {
                 _ambientSoundSystem.SetAmbience(uid, false);
@@ -70,7 +73,7 @@ namespace Content.Server.Atmos.Piping.Binary.EntitySystems
                 return;
 
             // We multiply the transfer rate in L/s by the seconds passed since the last process to get the liters.
-            var transferVol = pump.TransferRate * _atmosphereSystem.PumpSpeedup() * args.dt;
+            var transferVol = pump.TransferRate * supplyRatio * _atmosphereSystem.PumpSpeedup() * args.dt;
             var transferRatio = transferVol / inlet.Air.Volume;
 
             // Make sure we don't pump over the pressure limit.

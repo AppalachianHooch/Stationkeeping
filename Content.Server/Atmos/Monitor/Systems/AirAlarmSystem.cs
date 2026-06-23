@@ -221,6 +221,10 @@ public sealed partial class AirAlarmSystem : EntitySystem
             return;
         }
 
+        // PowerChangedEvent now also fires on supply-amount changes, so tear down only once per power loss.
+        if (component.CurrentModeUpdater == null && component.KnownDevices.Count == 0)
+            return;
+
         ForceCloseAllInterfaces(uid);
         component.CurrentModeUpdater = null;
         component.KnownDevices.Clear();

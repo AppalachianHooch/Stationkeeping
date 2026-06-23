@@ -39,6 +39,10 @@
                         Value="0.5">
                 <Label Name="ChargePercentage" Margin="4 0" Text="0 %" />
             </ProgressBar>
+
+            <PanelContainer Margin="10 8 0 0" StyleClasses="BackgroundPanel">
+                <BoxContainer Name="TierContainer" Orientation="Vertical" Margin="6" />
+            </PanelContainer>
         </BoxContainer>
 
         <!-- Footer -->

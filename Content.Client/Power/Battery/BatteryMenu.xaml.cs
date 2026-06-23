@@ -154,7 +154,6 @@ public sealed partial class BatteryMenu : FancyWindow
         SetPowerLineState(OutPowerLine, msg.LoadingNetworkHasPower);
         SetPowerLineState(InSecondPowerLine, msg.SupplyingNetworkHasPower && msg.CanCharge);
         SetPowerLineState(ChargePowerLine, msg.SupplyingNetworkHasPower && msg.CanCharge && storageDelta > 0);
-        SetPowerLineState(PassthroughPowerLine, msg.SupplyingNetworkHasPower && msg.CanCharge && msg.CanDischarge);
         SetPowerLineState(OutSecondPowerLine,
             msg.CanDischarge && (msg.Charge > 0 || msg.SupplyingNetworkHasPower && msg.CanCharge));
         SetPowerLineState(DischargePowerLine, storageDelta < 0);
@@ -166,7 +165,6 @@ public sealed partial class BatteryMenu : FancyWindow
         // Update various power values.
         InValue.Text = FormatPower(inValue);
         OutValue.Text = FormatPower(outValue);
-        PassthroughValue.Text = FormatPower(Math.Min(msg.CurrentReceiving, msg.CurrentSupply));
         ChargeMaxValue.Text = FormatPower(msg.MaxChargeRate);
         DischargeMaxValue.Text = FormatPower(msg.MaxSupply);
         ChargeCurrentValue.Text = FormatPower(Math.Max(0, storageDelta));

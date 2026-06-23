@@ -27,10 +27,15 @@ public sealed class PowerReceiverSystem : SharedPowerReceiverSystem
         if (args.Current is not ApcPowerReceiverComponentState state)
             return;
 
-        var powerChanged = component.Powered != state.Powered;
+        var powerChanged = component.Powered != state.Powered ||
+                           !MathHelper.CloseToPercent(component.ReceivingPower, state.ReceivingPower);
         component.Powered = state.Powered;
         component.NeedsPower = state.NeedsPower;
         component.PowerDisabled = state.PowerDisabled;
+        component.Load = state.Load;
+        component.ReceivingPower = state.ReceivingPower;
+        component.LoadPriority = state.LoadPriority;
+        component.ShedRatio = state.ShedRatio;
         // SO client systems can handle it. The main reason for this is we can't guarantee compstate ordering.
 
         if (powerChanged)
@@ -39,7 +44,7 @@ public sealed class PowerReceiverSystem : SharedPowerReceiverSystem
 
     protected override void RaisePower(Entity<SharedApcPowerReceiverComponent> entity)
     {
-        var ev = new PowerChangedEvent(entity.Comp.Powered, 0f);
+        var ev = new PowerChangedEvent(entity.Comp.Powered, entity.Comp.ReceivingPower);
         RaiseLocalEvent(entity.Owner, ref ev);
     }
 

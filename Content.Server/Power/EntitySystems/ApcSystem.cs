@@ -9,6 +9,7 @@ using Content.Shared.Emag.Systems;
 using Content.Shared.Emp;
 using Content.Shared.Popups;
 using Content.Shared.Power;
+using Content.Shared.Power.Components;
 using Content.Shared.Rounding;
 using Robust.Server.GameObjects;
 using Robust.Shared.Audio;
@@ -38,6 +39,7 @@ public sealed partial class ApcSystem : EntitySystem
         SubscribeLocalEvent<ApcComponent, ComponentStartup>(OnApcStartup);
         SubscribeLocalEvent<ApcComponent, ChargeChangedEvent>(OnBatteryChargeChanged);
         SubscribeLocalEvent<ApcComponent, ApcToggleMainBreakerMessage>(OnToggleMainBreaker);
+        SubscribeLocalEvent<ApcComponent, ApcSetTierOverrideMessage>(OnSetTierOverride);
         SubscribeLocalEvent<ApcComponent, GotEmaggedEvent>(OnEmagged);
 
         SubscribeLocalEvent<ApcComponent, EmpPulseEvent>(OnEmpPulse);
@@ -123,6 +125,27 @@ public sealed partial class ApcSystem : EntitySystem
             _popup.PopupCursor(Loc.GetString("apc-component-insufficient-access"),
                 args.Actor, PopupType.Medium);
         }
+    }
+
+    private void OnSetTierOverride(EntityUid uid, ApcComponent component, ApcSetTierOverrideMessage args)
+    {
+        if (!_accessReader.IsAllowed(args.Actor, uid))
+        {
+            _popup.PopupCursor(Loc.GetString("apc-component-insufficient-access"),
+                args.Actor, PopupType.Medium);
+            return;
+        }
+
+        component.TierOverrides[args.Priority] = args.Override;
+        UpdateUIState(uid, component);
+
+        _adminLogger.Add(LogType.ItemConfigure, LogImpact.Medium,
+            $"{ToPrettyString(args.Actor):user} set {ToPrettyString(uid):entity} {args.Priority.ToString():priority} power override to {args.Override.ToString():state}.");
+    }
+
+    public ApcPowerPriorityOverride GetTierOverride(Entity<ApcComponent> ent, ApcPowerPriority priority)
+    {
+        return ent.Comp.TierOverrides.GetValueOrDefault(priority, ApcPowerPriorityOverride.Auto);
     }
 
     /// <summary>Toggles the enabled state of the APC's main breaker.</summary>
@@ -213,7 +236,8 @@ public sealed partial class ApcSystem : EntitySystem
             (int) MathF.Ceiling(battery.CurrentSupply), apc.LastExternalState,
             charge,
             apc.MaxLoad,
-            apc.TripFlag);
+            apc.TripFlag,
+            apc.TierInfo);
 
         _ui.SetUiState((uid, ui), ApcUiKey.Key, state);
     }

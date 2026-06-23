@@ -45,6 +45,7 @@
   components:
   - type: ApcPowerReceiver
     powerLoad: 1000
+    loadPriority: Equipment
   - type: ExtensionCableReceiver
   - type: LightningTarget
     priority: 1

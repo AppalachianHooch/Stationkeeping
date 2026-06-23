@@ -114,6 +114,18 @@ public abstract partial class SharedPowerReceiverSystem : EntitySystem
         return entity.Comp.Powered;
     }
 
+    /// <summary>
+    /// Fraction of desired power currently supplied (0..1), or 1 when there is no APC receiver.
+    /// Use for devices that scale with partial supply instead of cutting out at the powered threshold.
+    /// </summary>
+    public float GetSupplyRatio(Entity<SharedApcPowerReceiverComponent?> entity)
+    {
+        if (!ResolveApc(entity.Owner, ref entity.Comp))
+            return 1f;
+
+        return entity.Comp.SupplyRatio;
+    }
+
     protected string GetExamineText(bool powered)
     {
         return Loc.GetString("power-receiver-component-on-examine-main",

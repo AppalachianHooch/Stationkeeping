@@ -80,7 +80,8 @@ public abstract partial class SharedGasVolumePumpSystem : EntitySystem
         if (!Resolve(uid, ref pump, ref appearance, false))
             return;
 
-        bool pumpOn = pump.Enabled && _receiver.IsPowered(uid);
+        // Match the run gate (any supply), so a brownout-throttled pump still reads as running.
+        bool pumpOn = pump.Enabled && _receiver.GetSupplyRatio(uid) > 0f;
         if (!pumpOn)
             _appearance.SetData(uid, GasVolumePumpVisuals.State, GasVolumePumpState.Off, appearance);
         else if (pump.Blocked)

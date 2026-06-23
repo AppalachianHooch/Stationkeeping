@@ -39,6 +39,7 @@
   - type: StationLimitedNetwork
   - type: ApcPowerReceiver
     powerLoad: 200
+    loadPriority: LifeSafety
   - type: ExtensionCableReceiver
   - type: WiresPanel
   - type: WiresVisuals

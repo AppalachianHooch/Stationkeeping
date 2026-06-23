@@ -6,8 +6,11 @@ using System;
 using System.Numerics;
 using Content.Client.Stylesheets;
 using Content.Shared.APC;
+using Content.Shared.Power.Components;
 using Robust.Client.Graphics;
+using Robust.Client.UserInterface.Controls;
 using FancyWindow = Content.Client.UserInterface.Controls.FancyWindow;
+using TableContainer = Content.Client.UserInterface.Controls.TableContainer;
 
 namespace Content.Client.Power.APC.UI
 {
@@ -15,6 +18,11 @@ namespace Content.Client.Power.APC.UI
     public sealed partial class ApcMenu : FancyWindow
     {
         public event Action? OnBreaker;
+        public event Action<ApcPowerPriority, ApcPowerPriorityOverride>? OnTierOverride;
+
+        private readonly List<(Label Req, Label Eff, Label State, OptionButton Override)> _tierRows = new();
+
+        private bool _hasAccess;
 
         public ApcMenu()
         {
@@ -75,20 +83,92 @@ namespace Content.Client.Power.APC.UI
                 var chargePercentage = (castState.Charge / ChargeBar.MaxValue);
                 ChargePercentage.Text = Loc.GetString("apc-menu-charge-label",("percent",  chargePercentage.ToString("P0")));
             }
+
+            UpdateTierRows(castState);
+        }
+
+        private void UpdateTierRows(ApcBoundInterfaceState state)
+        {
+            if (_tierRows.Count != state.Tiers.Length)
+                RebuildTierRows(state);
+            else
+                RefreshTierValues(state);
+        }
+
+        private void RebuildTierRows(ApcBoundInterfaceState state)
+        {
+            TierContainer.RemoveAllChildren();
+            _tierRows.Clear();
+
+            TierContainer.AddChild(new Label
+            {
+                Text = Loc.GetString("apc-menu-tiers-heading"),
+                StyleClasses = { "LabelHeading" },
+            });
+
+            var table = new TableContainer { Columns = 5, HorizontalExpand = true };
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-tier") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-req") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-eff") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-state") });
+            table.AddChild(new Label { Text = Loc.GetString("apc-menu-tiers-col-override") });
+
+            foreach (var tier in state.Tiers)
+            {
+                var reqLabel = new Label { Text = MathF.Ceiling(tier.RequestedPower).ToString() };
+                var effLabel = new Label { Text = MathF.Ceiling(tier.EffectivePower).ToString() };
+                var stateLabel = new Label { Text = $"{ApcPowerTierLoc.State(tier.State)} {tier.ShedRatio:P0}" };
+
+                var overrideButton = new OptionButton();
+                overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-auto"), (int) ApcPowerPriorityOverride.Auto);
+                overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-force-on"), (int) ApcPowerPriorityOverride.ForceOn);
+                overrideButton.AddItem(Loc.GetString("apc-menu-tiers-override-force-off"), (int) ApcPowerPriorityOverride.ForceOff);
+                overrideButton.SelectId((int) tier.Override);
+                ApplyAccess(overrideButton);
+                var priority = tier.Priority;
+                overrideButton.OnItemSelected += args => OnTierOverride?.Invoke(priority, (ApcPowerPriorityOverride) args.Id);
+
+                table.AddChild(new Label { Text = ApcPowerTierLoc.Priority(tier.Priority) });
+                table.AddChild(reqLabel);
+                table.AddChild(effLabel);
+                table.AddChild(stateLabel);
+                table.AddChild(overrideButton);
+
+                _tierRows.Add((reqLabel, effLabel, stateLabel, overrideButton));
+            }
+
+            TierContainer.AddChild(table);
+        }
+
+        private void RefreshTierValues(ApcBoundInterfaceState state)
+        {
+            for (var i = 0; i < state.Tiers.Length; i++)
+            {
+                var tier = state.Tiers[i];
+                var (req, eff, stateLabel, overrideBtn) = _tierRows[i];
+                req.Text = MathF.Ceiling(tier.RequestedPower).ToString();
+                eff.Text = MathF.Ceiling(tier.EffectivePower).ToString();
+                stateLabel.Text = $"{ApcPowerTierLoc.State(tier.State)} {tier.ShedRatio:P0}";
+                overrideBtn.SelectId((int) tier.Override);
+            }
         }
 
         public void SetAccessEnabled(bool hasAccess)
         {
-            if(hasAccess)
-            {
-                BreakerButton.Disabled = false;
-                BreakerButton.ToolTip = null;
-            }
-            else
-            {
-                BreakerButton.Disabled = true;
-                BreakerButton.ToolTip = Loc.GetString("apc-component-insufficient-access");
-            }
+            _hasAccess = hasAccess;
+
+            BreakerButton.Disabled = !hasAccess;
+            BreakerButton.ToolTip = hasAccess ? null : Loc.GetString("apc-component-insufficient-access");
+
+            // Tier rows may be rebuilt after this call, so RebuildTierRows re-applies access too.
+            foreach (var (_, _, _, overrideBtn) in _tierRows)
+                ApplyAccess(overrideBtn);
+        }
+
+        private void ApplyAccess(OptionButton overrideButton)
+        {
+            overrideButton.Disabled = !_hasAccess;
+            overrideButton.ToolTip = _hasAccess ? null : Loc.GetString("apc-component-insufficient-access");
         }
 
         private void UpdateChargeBarColor(float charge)

@@ -1,5 +1,6 @@
 using Content.Server.Power.NodeGroups;
 using Content.Shared.APC;
+using Content.Shared.Power.Components;
 using Robust.Shared.Audio;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
@@ -59,6 +60,13 @@ public sealed partial class ApcComponent : BaseApcNetComponent
     /// </summary>
     [DataField]
     public bool TripFlag;
+
+    [DataField]
+    [ViewVariables(VVAccess.ReadWrite)]
+    public Dictionary<ApcPowerPriority, ApcPowerPriorityOverride> TierOverrides = new();
+
+    [ViewVariables]
+    public ApcPowerTierInfo[] TierInfo = [];
 
     // TODO ECS power a little better!
     // End the suffering

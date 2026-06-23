@@ -63,6 +63,7 @@
       visible: false
   - type: AnimationPlayer
   - type: ApcPowerReceiver
+    loadPriority: LifeSafety
   - type: ExtensionCableReceiver
   - type: DoorSignalControl
   - type: DeviceNetwork

@@ -1,3 +1,4 @@
+using Content.Shared.APC;
 using Robust.Shared.GameStates;
 using Robust.Shared.Map;
 using Robust.Shared.Serialization;
@@ -75,6 +76,9 @@ public sealed class PowerMonitoringConsoleBoundInterfaceState : BoundUserInterfa
     public PowerMonitoringConsoleEntry[] AllEntries;
     public PowerMonitoringConsoleEntry[] FocusSources;
     public PowerMonitoringConsoleEntry[] FocusLoads;
+    public ApcPowerTierInfo[] StationTiers;
+    public ApcPowerTierInfo[] FocusedApcTiers;
+    public NetEntity[] ApcsShedding;
 
     public PowerMonitoringConsoleBoundInterfaceState
         (double totalSources,
@@ -82,7 +86,10 @@ public sealed class PowerMonitoringConsoleBoundInterfaceState : BoundUserInterfa
         double totalLoads,
         PowerMonitoringConsoleEntry[] allEntries,
         PowerMonitoringConsoleEntry[] focusSources,
-        PowerMonitoringConsoleEntry[] focusLoads)
+        PowerMonitoringConsoleEntry[] focusLoads,
+        ApcPowerTierInfo[]? stationTiers = null,
+        ApcPowerTierInfo[]? focusedApcTiers = null,
+        NetEntity[]? apcsShedding = null)
     {
         TotalSources = totalSources;
         TotalBatteryUsage = totalBatteryUsage;
@@ -90,6 +97,9 @@ public sealed class PowerMonitoringConsoleBoundInterfaceState : BoundUserInterfa
         AllEntries = allEntries;
         FocusSources = focusSources;
         FocusLoads = focusLoads;
+        StationTiers = stationTiers ?? [];
+        FocusedApcTiers = focusedApcTiers ?? [];
+        ApcsShedding = apcsShedding ?? [];
     }
 }
 

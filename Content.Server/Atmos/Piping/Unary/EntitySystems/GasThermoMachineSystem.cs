@@ -7,7 +7,6 @@ using Content.Server.Power.Components;
 using Content.Shared.Atmos;
 using Content.Shared.Atmos.Piping.Unary.Components;
 using JetBrains.Annotations;
-using Content.Server.Power.EntitySystems;
 using Content.Shared.Atmos.Components;
 using Content.Shared.Atmos.Piping.Unary.Systems;
 using Content.Shared.DeviceNetwork;
@@ -20,7 +19,6 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
     public sealed partial class GasThermoMachineSystem : SharedGasThermoMachineSystem
     {
         [Dependency] private AtmosphereSystem _atmosphereSystem = default!;
-        [Dependency] private PowerReceiverSystem _power = default!;
         [Dependency] private NodeContainerSystem _nodeContainer = default!;
         [Dependency] private DeviceNetworkSystem _deviceNetwork = default!;
 
@@ -37,7 +35,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
         private void OnThermoMachineUpdated(EntityUid uid, GasThermoMachineComponent thermoMachine, ref AtmosDeviceUpdateEvent args)
         {
             thermoMachine.LastEnergyDelta = 0f;
-            if (!(_power.IsPowered(uid) && TryComp<ApcPowerReceiverComponent>(uid, out var receiver)))
+            if (!TryComp<ApcPowerReceiverComponent>(uid, out var receiver) || receiver.SupplyRatio <= 0f)
                 return;
 
             GetHeatExchangeGasMixture(uid, thermoMachine, out var heatExchangeGasMixture);
@@ -65,7 +63,7 @@ namespace Content.Server.Atmos.Piping.Unary.EntitySystems
             }
 
             // Multiply power in by coefficient of performance, add that heat to gas
-            float dQ = thermoMachine.HeatCapacity * thermoMachine.Cp * args.dt;
+            float dQ = thermoMachine.HeatCapacity * receiver.SupplyRatio * thermoMachine.Cp * args.dt;
 
             // Clamps the heat transferred to not overshoot
             float Cin = _atmosphereSystem.GetHeatCapacity(heatExchangeGasMixture, true);

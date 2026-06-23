@@ -54,6 +54,7 @@
   components:
   - type: ApcPowerReceiver
     powerLoad: 100
+    loadPriority: LifeSafety
   - type: ExtensionCableReceiver
   - type: LightningTarget
     priority: 1
