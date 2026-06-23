@@ -223,7 +223,7 @@ namespace Content.Shared.Atmos
         /// <summary>
         ///     Total number of gases. Increase this if you want to add more!
         /// </summary>
-        public const int TotalNumberOfGases = 9;
+        public const int TotalNumberOfGases = 11;
 
         /// <summary>
         ///     This is the actual length of the gases arrays in mixtures.
@@ -258,6 +258,21 @@ namespace Content.Shared.Atmos
         public const float TritiumBurnOxyFactor = 100f;
         public const float TritiumBurnTritFactor = 10f;
         public const float TritiumBurnFuelRatio = 2f;
+
+        /// <summary>
+        ///     Energy released per mole of methane burned: CH4 + 2 O2 -> CO2 + 2 H2O.
+        /// </summary>
+        public const float FireMethaneEnergyReleased = 890e3f;
+
+        /// <summary>
+        ///     Moles of oxygen consumed per mole of methane burned.
+        /// </summary>
+        public const float MethaneBurnOxyRatio = 2f;
+
+        /// <summary>
+        ///     Divides the methane burned per tick so a methane fire is sustained rather than instant.
+        /// </summary>
+        public const float MethaneBurnRateDelta = 10f;
 
         public const float FrezonCoolLowerTemperature = 23.15f;
 
@@ -387,6 +402,8 @@ namespace Content.Shared.Atmos
         WaterVapor = 5,
         Ammonia = 6,
         NitrousOxide = 7,
-        Frezon = 8
+        Frezon = 8,
+        Hydrogen = 9,
+        Methane = 10
     }
 }

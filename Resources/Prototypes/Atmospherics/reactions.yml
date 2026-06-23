@@ -19,6 +19,26 @@
     - !type:TritiumFireReaction {}
 
 - type: gasReaction
+  id: HydrogenFire
+  priority: -3
+  minimumTemperature: 373.149 # Same as Atmospherics.FireMinimumTemperatureToExist
+  minimumRequirements:
+    Oxygen: 0.01
+    Hydrogen: 0.01
+  effects:
+    - !type:HydrogenFireReaction {}
+
+- type: gasReaction
+  id: MethaneFire
+  priority: -4
+  minimumTemperature: 373.149 # Same as Atmospherics.FireMinimumTemperatureToExist
+  minimumRequirements:
+    Oxygen: 0.01
+    Methane: 0.01
+  effects:
+    - !type:MethaneFireReaction {}
+
+- type: gasReaction
   id: FrezonCoolant
   priority: 1
   minimumTemperature: 23.15

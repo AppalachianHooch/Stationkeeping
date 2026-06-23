@@ -447,9 +447,9 @@ public sealed class DeltaPressureTest : AtmosTest
                     mix.Clear();
             });
         }
-    }                                                         
-                                                              
-    /// <summary> 
+    }
+
+    /// <summary>
     /// Asserts that diagonal pressure groupings do not trigger delta pressure damage.
     /// </summary>
     [Test]
