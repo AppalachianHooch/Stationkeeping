@@ -85,10 +85,10 @@ public sealed partial class PoweredLightSystem : SharedPoweredLightSystem
 
         if (isNew)
         {
-            // Start in lit phase; UpdateLight already set a dimmed state, we override immediately.
+            // Start in lit phase, dimmed by the shed ratio so the flicker matches the brownout brightness.
             flicker.LitPhase = true;
             flicker.NextToggle = GameTiming.CurTime + FlickerDelay(shedRatio, litPhase: true);
-            SetLight(uid, true, bulb.Color, light, bulb.LightRadius, bulb.LightEnergy, bulb.LightSoftness);
+            SetLight(uid, true, bulb.Color, light, bulb.LightRadius, bulb.LightEnergy * shedRatio, bulb.LightSoftness);
         }
     }
 
@@ -113,7 +113,7 @@ public sealed partial class PoweredLightSystem : SharedPoweredLightSystem
             }
 
             if (flicker.LitPhase)
-                SetLight(uid, true, bulb.Color, light, bulb.LightRadius, bulb.LightEnergy, bulb.LightSoftness);
+                SetLight(uid, true, bulb.Color, light, bulb.LightRadius, bulb.LightEnergy * flicker.ShedRatio, bulb.LightSoftness);
             else
                 SetLight(uid, false, light: light);
 

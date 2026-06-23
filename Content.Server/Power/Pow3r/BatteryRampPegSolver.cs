@@ -113,10 +113,6 @@ namespace Content.Server.Power.Pow3r
                 demand += load.DesiredPower;
             }
 
-            // TODO: Consider having battery charge loads be processed "after" pass-through loads.
-            // This would mean that charge rate would have no impact on throughput rate like it does currently.
-            // Would require a second pass over the network, or something. Not sure.
-
             // Add demand from batteries
             foreach (var batteryId in network.BatteryLoads)
             {
@@ -177,15 +173,16 @@ namespace Content.Server.Power.Pow3r
                     if (!battery.Enabled || !battery.CanDischarge || battery.Paused)
                         continue;
 
+                    // Incoming power charges storage and is re-supplied from it, so MaxSupply is the true
+                    // output cap and the device's output slider actually bounds throughput.
                     var scaledSpace = battery.CurrentStorage / frameTime;
                     var supplyCap = Math.Min(battery.MaxSupply,
                         battery.SupplyRampPosition + battery.SupplyRampTolerance);
-                    var supplyAndPassthrough = supplyCap + battery.CurrentReceiving * battery.Efficiency;
 
-                    battery.AvailableSupply = Math.Min(scaledSpace, supplyAndPassthrough);
+                    battery.AvailableSupply = Math.Min(scaledSpace, supplyCap);
                     battery.LoadingNetworkDemand = unmet;
 
-                    battery.MaxEffectiveSupply = Math.Min(battery.CurrentStorage / frameTime, battery.MaxSupply + battery.CurrentReceiving * battery.Efficiency);
+                    battery.MaxEffectiveSupply = Math.Min(battery.CurrentStorage / frameTime, battery.MaxSupply);
                     totalBatterySupply += battery.AvailableSupply;
                     totalMaxBatterySupply += battery.MaxEffectiveSupply;
                 }
@@ -285,7 +282,7 @@ namespace Content.Server.Power.Pow3r
 #endif
                 battery.CurrentStorage = MathF.Max(0, battery.CurrentStorage);
 
-                battery.SupplyRampTarget = battery.MaxEffectiveSupply * relativeTargetBatteryOutput - battery.CurrentReceiving * battery.Efficiency;
+                battery.SupplyRampTarget = battery.MaxEffectiveSupply * relativeTargetBatteryOutput;
 
                 DebugTools.Assert(battery.MaxEffectiveSupply * relativeTargetBatteryOutput <= battery.LoadingNetworkDemand
                                   || MathHelper.CloseToPercent(battery.MaxEffectiveSupply * relativeTargetBatteryOutput, battery.LoadingNetworkDemand, 0.001));

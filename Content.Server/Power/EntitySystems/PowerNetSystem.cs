@@ -433,15 +433,14 @@ namespace Content.Server.Power.EntitySystems
 
         private static float GetAvailableApcSupply(PowerState.Battery battery, float frameTime)
         {
-            // Shed budget capped at rated MaxSupply; transient grid passthrough must not count as headroom.
+            // Mirrors the solver's AvailableSupply: shed budget is the APC's own ramped discharge capped at
+            // MaxSupply, so an undersupplied grid drains the APC and then starves its loads.
             if (!battery.Enabled || !battery.CanDischarge || battery.Paused || frameTime <= 0f)
                 return 0f;
 
             var scaledSpace = battery.CurrentStorage / frameTime;
-            var passthrough = battery.CurrentReceiving * battery.Efficiency;
-            var rampCap = battery.SupplyRampPosition + battery.SupplyRampTolerance;
-            var dischargeCap = Math.Min(scaledSpace - passthrough, rampCap);
-            return Math.Max(0f, Math.Min(battery.MaxSupply, dischargeCap + passthrough));
+            var supplyCap = Math.Min(battery.MaxSupply, battery.SupplyRampPosition + battery.SupplyRampTolerance);
+            return Math.Max(0f, Math.Min(scaledSpace, supplyCap));
         }
 
         private void ReconnectNetworks()
