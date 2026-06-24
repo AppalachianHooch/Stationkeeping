@@ -16,3 +16,7 @@ gas-nitrous-oxide = Nitrous Oxide
 gas-nitrous-oxide-abbreviation = N₂O
 gas-frezon = Frezon
 gas-frezon-abbreviation = F
+gas-hydrogen = Hydrogen
+gas-hydrogen-abbreviation = H₂
+gas-methane = Methane
+gas-methane-abbreviation = CH₄

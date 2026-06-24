@@ -22,10 +22,10 @@ public readonly record struct ReagentPipeLayout(
 /// network's own tiles, two networks can run side by side without merging - the property the engine's
 /// power-only auto-cabler can't give. The reusable core for plumbing generated ships with fuel/coolant/RCS lines.
 /// </summary>
-public sealed class ReagentPipeLayerSystem : EntitySystem
+public sealed partial class ReagentPipeLayerSystem : EntitySystem
 {
-    [Dependency] private readonly SharedMapSystem _maps = default!;
-    [Dependency] private readonly SharedTransformSystem _xform = default!;
+    [Dependency] private SharedMapSystem _maps = default!;
+    [Dependency] private SharedTransformSystem _xform = default!;
 
     private static readonly Angle[] Quarters =
     {

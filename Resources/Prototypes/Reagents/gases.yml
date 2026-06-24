@@ -395,3 +395,22 @@
         messages: [ "frezon-euphoric" ]
         probability: 0.1
         minScale: 1
+
+- type: reagent
+  id: Methane
+  name: reagent-name-methane
+  desc: reagent-desc-methane
+  physicalDesc: reagent-physical-desc-gaseous
+  flavor: bitter
+  color: "#d0e0d0"
+  boilingPoint: -161.5
+  meltingPoint: -182.5
+  metabolisms:
+    Bloodstream:
+      effects:
+      # A simple asphyxiant: displaces oxygen, mild but not deadly.
+      - !type:HealthChange
+        ignoreResistances: true
+        damage:
+          types:
+            Asphyxiation: 0.5
