@@ -293,6 +293,8 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
                 var supplyRatio = powerReceiver.SupplyRatio;
                 if (light.On && supplyRatio > 0f)
                 {
+                    // Clunk only when the bulb actually lights up, not each refire while it stays lit.
+                    var wasLit = light.CurrentLit;
                     SetLight(uid,
                         true,
                         lightBulb.Color,
@@ -302,7 +304,7 @@ public abstract partial class SharedPoweredLightSystem : EntitySystem
                         lightBulb.LightSoftness);
                     _appearance.SetData(uid, PoweredLightVisuals.BulbState, PoweredLightState.On, appearance);
                     var time = GameTiming.CurTime;
-                    if (time > light.LastThunk + ThunkDelay)
+                    if (!wasLit && time > light.LastThunk + ThunkDelay)
                     {
                         light.LastThunk = time;
                         Dirty(uid, light);
