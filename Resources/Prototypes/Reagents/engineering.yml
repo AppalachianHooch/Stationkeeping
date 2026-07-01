@@ -1,0 +1,9 @@
+- type: reagent
+  id: ReactorCoolant
+  name: reagent-name-reactor-coolant
+  desc: reagent-desc-reactor-coolant
+  physicalDesc: reagent-physical-desc-slippery
+  flavor: chemical
+  color: "#4FC3F7"
+  boilingPoint: 197.0
+  meltingPoint: -12.0

@@ -24,6 +24,12 @@ public sealed class ReagentPipeNet : BaseNodeGroup
     /// </summary>
     [ViewVariables] public float Pressure;
 
+    /// <summary>
+    ///     Temperature of the fluid in the line, in Kelvin. Heat sources (e.g. the AME) raise it;
+    ///     heat exchangers lower it back toward ambient.
+    /// </summary>
+    [ViewVariables] public float Temperature = 293.15f;
+
     [ViewVariables] private IPrototypeManager? _protoManager;
 
     public override void Initialize(Node sourceNode, IEntityManager entMan)
@@ -68,9 +74,13 @@ public sealed class ReagentPipeNet : BaseNodeGroup
             return;
 
         // Distribute the old contents across the new nets proportional to their capacity.
+        // Temperature is uniform throughout the original net, so every child inherits it.
+        var startTemp = Temperature;
         var startVolume = Reagents.Volume;
         for (var i = 0; i < nets.Count; i++)
         {
+            nets[i].Temperature = startTemp;
+
             // Last net takes whatever remains to avoid leaving stragglers from rounding.
             var split = i == nets.Count - 1
                 ? Reagents.SplitSolution(Reagents.Volume)

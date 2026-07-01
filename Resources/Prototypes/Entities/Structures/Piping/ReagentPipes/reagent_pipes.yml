@@ -253,3 +253,32 @@
   - type: Construction
     graph: ReagentPipe
     node: outputPort
+
+# Heat exchanger: sheds heat from a coolant pipe net into the surrounding atmosphere.
+
+- type: entity
+  parent: BaseStructure
+  id: CoolantHeatExchanger
+  name: coolant heat exchanger
+  description: Transfers heat from the coolant loop into the surrounding atmosphere. Install one or more in the loop to keep the AME from cooking its own coolant.
+  placement:
+    mode: SnapgridCenter
+  components:
+  - type: Transform
+    anchored: true
+  - type: Anchorable
+  - type: Rotatable
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/coolant_heat_exchanger.rsi
+    state: exchanger
+  - type: NodeContainer
+    nodes:
+      coolant:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: Longitudinal
+  - type: AtmosDevice
+  - type: CoolantHeatExchanger
+  - type: Construction
+    graph: CoolantPipe
+    node: heatExchanger

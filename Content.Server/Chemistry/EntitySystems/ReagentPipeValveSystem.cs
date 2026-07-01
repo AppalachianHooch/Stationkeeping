@@ -36,7 +36,10 @@ public sealed partial class ReagentPipeValveSystem : EntitySystem
         if (args.Handled || !args.Complex)
             return;
 
-        Set(ent, !ent.Comp.Open);
+        // Don't claim the interaction or pop a confirmation if the nodes weren't there to toggle.
+        if (!Set(ent, !ent.Comp.Open))
+            return;
+
         _popup.PopupEntity(
             Loc.GetString(ent.Comp.Open ? "reagent-pipe-valve-open" : "reagent-pipe-valve-closed"),
             ent,
@@ -44,12 +47,12 @@ public sealed partial class ReagentPipeValveSystem : EntitySystem
         args.Handled = true;
     }
 
-    private void Set(Entity<ReagentPipeValveComponent> ent, bool open)
+    private bool Set(Entity<ReagentPipeValveComponent> ent, bool open)
     {
         // Only flip the flag once the nodes resolve, so the valve's state never desyncs from its nets.
         if (!_nodeContainer.TryGetNodes((ent.Owner, null), ent.Comp.InletName, ent.Comp.OutletName,
                 out ReagentPipeNode? inlet, out ReagentPipeNode? outlet))
-            return;
+            return false;
 
         ent.Comp.Open = open;
 
@@ -63,5 +66,7 @@ public sealed partial class ReagentPipeValveSystem : EntitySystem
             inlet.RemoveAlwaysReachable(outlet);
             outlet.RemoveAlwaysReachable(inlet);
         }
+
+        return true;
     }
 }

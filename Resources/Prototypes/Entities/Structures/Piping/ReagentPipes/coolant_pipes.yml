@@ -1,0 +1,149 @@
+# Coolant pipes: a closed liquid loop for reactor thermal management.
+# All segments share nodeGroupID: CoolantPipe so they never mix with reagent or fuel nets.
+
+- type: entity
+  abstract: true
+  parent: ReagentPipeBase
+  id: CoolantPipeBase
+  name: coolant pipe
+  description: Carries reactor coolant between connected machines.
+  components:
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/coolant_pipe.rsi
+
+- type: entity
+  parent: CoolantPipeBase
+  id: CoolantPipeStraight
+  suffix: Straight
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: Longitudinal
+  - type: Sprite
+    layers:
+    - state: pipeStraight
+  - type: Construction
+    graph: CoolantPipe
+    node: straight
+
+- type: entity
+  parent: CoolantPipeBase
+  id: CoolantPipeBend
+  suffix: Bend
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: SWBend
+  - type: Sprite
+    layers:
+    - state: pipeBend
+  - type: Construction
+    graph: CoolantPipe
+    node: bend
+
+- type: entity
+  parent: CoolantPipeBase
+  id: CoolantPipeTJunction
+  suffix: T-Junction
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: TSouth
+  - type: Sprite
+    layers:
+    - state: pipeTJunction
+  - type: Construction
+    graph: CoolantPipe
+    node: tjunction
+
+- type: entity
+  parent: CoolantPipeBase
+  id: CoolantPipeFourway
+  suffix: Fourway
+  components:
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: Fourway
+  - type: Sprite
+    layers:
+    - state: pipeFourway
+  - type: Construction
+    graph: CoolantPipe
+    node: fourway
+
+# Valve: manually open or close a section of the coolant loop.
+
+- type: entity
+  parent: CoolantPipeBase
+  id: CoolantPipeValve
+  name: coolant valve
+  description: A hand valve for the coolant loop. Toggle it to open or close the line.
+  components:
+  - type: NodeContainer
+    nodes:
+      inlet:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: South
+      outlet:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: North
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/pump.rsi
+    layers:
+    - state: pumpManualValve
+  - type: ReagentPipeValve
+  - type: Construction
+    graph: CoolantPipe
+    node: valve
+
+# Fill port: connect a beaker to inject reactor coolant into the loop.
+
+- type: entity
+  parent: BaseStructure
+  id: CoolantPipePort
+  name: coolant fill port
+  description: Fill it from a beaker to inject reactor coolant into the connected loop.
+  components:
+  - type: Transform
+    anchored: true
+  - type: Anchorable
+  - type: Rotatable
+  - type: Sprite
+    sprite: Structures/Piping/ReagentPipes/pump.rsi
+    state: pumpVolume
+  - type: Solution
+    id: tank
+    solution:
+      maxVol: 200
+  - type: RefillableSolution
+    solution: tank
+  - type: DrainableSolution
+    solution: tank
+  - type: ExaminableSolution
+    solution: tank
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:ReagentPipeNode
+        nodeGroupID: CoolantPipe
+        pipeDirection: Fourway
+  - type: ReagentPipeConnector
+    mode: Input
+    solutionName: tank
+  - type: Construction
+    graph: CoolantPipe
+    node: fillPort

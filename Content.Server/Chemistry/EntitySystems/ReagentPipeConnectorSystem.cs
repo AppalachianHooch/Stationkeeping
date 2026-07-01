@@ -102,14 +102,27 @@ public sealed partial class ReagentPipeConnectorSystem : EntitySystem
         var query = EntityQueryEnumerator<ReagentPipeConnectorComponent, NodeContainerComponent>();
         while (query.MoveNext(out var uid, out var comp, out var nodes))
         {
-            if (!comp.Enabled || _timing.CurTime < comp.NextTransfer)
+            if (!comp.Enabled)
                 continue;
-
-            comp.NextTransfer += comp.Duration;
 
             if (!_nodeContainer.TryGetNode<ReagentPipeNode>((uid, nodes), comp.NodeName, out var node)
                 || node.NodeGroup is not ReagentPipeNet net)
                 continue;
+
+            // Input connectors are regulators: assert line pressure every tick (max across all of them) so the
+            // line tracks the strongest active regulator and drops the moment one stops, instead of latching
+            // whichever transferred last. Baseline (0.5) moves the rated rate; full pressure moves half again as much.
+            var pressure = Math.Clamp(comp.Pressure, 0f, 1f);
+            if (comp.Mode == ReagentPipeConnectorMode.Input)
+                net.Pressure = _pressurizedThisTick.Add(net) ? pressure : MathF.Max(net.Pressure, pressure);
+
+            if (_timing.CurTime < comp.NextTransfer)
+                continue;
+
+            // Resync rather than catch up, so an idle connector resumes at one transfer per cycle, not a burst.
+            comp.NextTransfer += comp.Duration;
+            if (comp.NextTransfer < _timing.CurTime)
+                comp.NextTransfer = _timing.CurTime + comp.Duration;
 
             // Resolve handles both a managed solution and a SolutionComponent sitting on the entity.
             if (!_solution.ResolveSolution((uid, null), comp.SolutionName, ref comp.Solution))
@@ -117,13 +130,9 @@ public sealed partial class ReagentPipeConnectorSystem : EntitySystem
 
             if (comp.Mode == ReagentPipeConnectorMode.Input)
             {
-                // The input connector is the regulator: it pressurizes the line and feeds faster the higher
-                // the pressure is set. Baseline (0.5) moves the rated rate; full pressure moves half again as much.
-                // The line runs at the strongest regulator, so multiple inputs aggregate to the max instead of
-                // racing to overwrite each other based on enumeration order.
-                var pressure = Math.Clamp(comp.Pressure, 0f, 1f);
-                net.Pressure = _pressurizedThisTick.Add(net) ? pressure : MathF.Max(net.Pressure, pressure);
-                DrainIntoNet(comp.Solution.Value, net, comp.TransferRate * (0.5f + pressure));
+                // "Off" (pressure 0) holds the line but moves nothing.
+                if (pressure > 0f)
+                    DrainIntoNet(comp.Solution.Value, net, comp.TransferRate * (0.5f + pressure));
             }
             else
             {
