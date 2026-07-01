@@ -22,6 +22,9 @@ namespace Content.Client.Power.APC.UI
 
         private readonly List<(Label Req, Label Eff, Label State, OptionButton Override)> _tierRows = new();
 
+        // Picks the server hasn't echoed back yet, so a refresh doesn't snap them to the old value.
+        private readonly Dictionary<ApcPowerPriority, ApcPowerPriorityOverride> _pendingOverrides = new();
+
         private bool _hasAccess;
 
         public ApcMenu()
@@ -100,6 +103,10 @@ namespace Content.Client.Power.APC.UI
             TierContainer.RemoveAllChildren();
             _tierRows.Clear();
 
+            // No tiers: skip the heading rather than strand it over an empty table.
+            if (state.Tiers.Length == 0)
+                return;
+
             TierContainer.AddChild(new Label
             {
                 Text = Loc.GetString("apc-menu-tiers-heading"),
@@ -126,7 +133,12 @@ namespace Content.Client.Power.APC.UI
                 overrideButton.SelectId((int) tier.Override);
                 ApplyAccess(overrideButton);
                 var priority = tier.Priority;
-                overrideButton.OnItemSelected += args => OnTierOverride?.Invoke(priority, (ApcPowerPriorityOverride) args.Id);
+                overrideButton.OnItemSelected += args =>
+                {
+                    overrideButton.SelectId(args.Id);
+                    _pendingOverrides[priority] = (ApcPowerPriorityOverride) args.Id;
+                    OnTierOverride?.Invoke(priority, (ApcPowerPriorityOverride) args.Id);
+                };
 
                 table.AddChild(new Label { Text = ApcPowerTierLoc.Priority(tier.Priority) });
                 table.AddChild(reqLabel);
@@ -149,7 +161,18 @@ namespace Content.Client.Power.APC.UI
                 req.Text = MathF.Ceiling(tier.RequestedPower).ToString();
                 eff.Text = MathF.Ceiling(tier.EffectivePower).ToString();
                 stateLabel.Text = $"{ApcPowerTierLoc.State(tier.State)} {tier.ShedRatio:P0}";
-                overrideBtn.SelectId((int) tier.Override);
+
+                // Hold the player's pending pick until the server confirms it.
+                if (_pendingOverrides.TryGetValue(tier.Priority, out var pending))
+                {
+                    if (pending == tier.Override)
+                        _pendingOverrides.Remove(tier.Priority);
+                    else
+                        continue;
+                }
+
+                if (overrideBtn.SelectedId != (int) tier.Override)
+                    overrideBtn.SelectId((int) tier.Override);
             }
         }
 

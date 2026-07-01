@@ -209,7 +209,7 @@ public sealed partial class PowerChargeSystem : EntitySystem
             component.SwitchedOn,
             (byte) (component.Charge * 255),
             status,
-            (short) Math.Round(powerReceiver.PowerReceived),
+            (short) Math.Round(powerReceiver.ReceivingPower),
             (short) Math.Round(powerReceiver.Load),
             chargeEta
         );
@@ -234,7 +234,7 @@ public sealed partial class PowerChargeSystem : EntitySystem
         {
             MakeBroken((uid, machine), appearance);
         }
-        else if (powerReceiver.PowerReceived < machine.IdlePowerUse)
+        else if (powerReceiver.ReceivingPower < machine.IdlePowerUse)
         {
             MakeUnpowered((uid, machine), appearance);
         }
