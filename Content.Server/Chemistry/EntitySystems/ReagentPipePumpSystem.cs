@@ -41,7 +41,10 @@ public sealed partial class ReagentPipePumpSystem : EntitySystem
             if (!pump.Enabled || _timing.CurTime < pump.NextTransfer)
                 continue;
 
+            // Resync rather than catch up, so a re-enabled pump resumes at one transfer per cycle, not a burst.
             pump.NextTransfer += pump.Duration;
+            if (pump.NextTransfer < _timing.CurTime)
+                pump.NextTransfer = _timing.CurTime + pump.Duration;
 
             if (!_nodeContainer.TryGetNodes((uid, nodes), pump.InletName, pump.OutletName,
                     out ReagentPipeNode? inlet, out ReagentPipeNode? outlet))
@@ -60,8 +63,17 @@ public sealed partial class ReagentPipePumpSystem : EntitySystem
             if (amount <= FixedPoint2.Zero)
                 continue;
 
+            var transferred = amount.Float();
+            var outVolBefore = outNet.Reagents.Volume.Float();
+            var inTemp = inNet.Temperature;
+
             var taken = inNet.Reagents.SplitSolution(amount);
             outNet.Reagents.AddSolution(taken, _protoManager);
+
+            // Weighted-average temperature mix.
+            var outVolAfter = outVolBefore + transferred;
+            if (outVolAfter > 0f)
+                outNet.Temperature = (outVolBefore * outNet.Temperature + transferred * inTemp) / outVolAfter;
         }
     }
 }

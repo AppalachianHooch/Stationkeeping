@@ -1,0 +1,63 @@
+# COOLANT PIPES
+- type: construction
+  id: CoolantPipeStraight
+  graph: CoolantPipe
+  startNode: start
+  targetNode: straight
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipeBend
+  graph: CoolantPipe
+  startNode: start
+  targetNode: bend
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipeTJunction
+  graph: CoolantPipe
+  startNode: start
+  targetNode: tjunction
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipeFourway
+  graph: CoolantPipe
+  startNode: start
+  targetNode: fourway
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipeValve
+  graph: CoolantPipe
+  startNode: start
+  targetNode: valve
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantPipePort
+  graph: CoolantPipe
+  startNode: start
+  targetNode: fillPort
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true
+
+- type: construction
+  id: CoolantHeatExchanger
+  graph: CoolantPipe
+  startNode: start
+  targetNode: heatExchanger
+  category: construction-category-utilities
+  placementMode: SnapgridCenter
+  canBuildInImpassable: true

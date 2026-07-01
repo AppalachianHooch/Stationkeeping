@@ -20,6 +20,12 @@ public sealed partial class TrayScannerComponent : Component
     public TrayScannerMode Mode = TrayScannerMode.All;
 
     /// <summary>
+    ///     Which hidden plane the scanner reveals: the subfloor or the overhead plenum.
+    /// </summary>
+    [DataField, AutoNetworkedField]
+    public TrayScannerLayer Layer = TrayScannerLayer.Subfloor;
+
+    /// <summary>
     ///     Radius in which the scanner will reveal entities. Centered on the <see cref="LastLocation"/>.
     /// </summary>
     [DataField, AutoNetworkedField]
@@ -35,6 +41,13 @@ public enum TrayScannerMode
     All,
     Piping,
     Wiring
+}
+
+[Serializable, NetSerializable]
+public enum TrayScannerLayer : byte
+{
+    Subfloor,
+    Plenum
 }
 
 [Serializable, NetSerializable]
