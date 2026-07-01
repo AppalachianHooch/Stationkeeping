@@ -163,6 +163,11 @@ public sealed partial class DisposalUnitComponent : Component
     public TimeSpan? NextFlush;
 
     /// <summary>
+    /// Last power state seen, to reset the flush timer only when power really toggles.
+    /// </summary>
+    public bool Powered;
+
+    /// <summary>
     /// The max number of entities that can be inserted in the unit before it needs to be flushed.
     /// </summary>
     [DataField]

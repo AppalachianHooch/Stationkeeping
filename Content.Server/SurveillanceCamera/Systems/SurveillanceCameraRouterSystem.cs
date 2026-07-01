@@ -86,8 +86,12 @@ public sealed partial class SurveillanceCameraRouterSystem : EntitySystem
 
     private void OnPowerChanged(EntityUid uid, SurveillanceCameraRouterComponent component, ref PowerChangedEvent args)
     {
-        component.MonitorRoutes.Clear();
+        // Only clear routes when power actually toggles, not on every brownout refire.
+        if (component.Active == args.Powered)
+            return;
+
         component.Active = args.Powered;
+        component.MonitorRoutes.Clear();
     }
 
     private void AddVerbs(EntityUid uid, SurveillanceCameraRouterComponent component, GetVerbsEvent<AlternativeVerb> verbs)
