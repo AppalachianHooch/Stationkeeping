@@ -100,6 +100,11 @@ public abstract partial class SharedDisposalUnitSystem : EntitySystem
 
     private void OnPowerChange(Entity<DisposalUnitComponent> ent, ref PowerChangedEvent args)
     {
+        // Skip refires that didn't actually change power, else the auto-flush timer never elapses.
+        if (ent.Comp.Powered == args.Powered)
+            return;
+
+        ent.Comp.Powered = args.Powered;
         RecalculateFlushTime(ent, true);
         UpdateVisualState(ent);
     }

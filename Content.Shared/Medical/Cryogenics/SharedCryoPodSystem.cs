@@ -192,9 +192,12 @@ public abstract partial class SharedCryoPodSystem : EntitySystem
 
         if (args.Powered)
         {
-            EnsureComp<ActiveCryoPodComponent>(ent);
-            ent.Comp.NextInjectionTime = Timing.CurTime + ent.Comp.BeakerTransferTime;
-            Dirty(ent);
+            // Real power-on only, so a mid-brownout refire doesn't keep pushing the injection back.
+            if (!EnsureComp<ActiveCryoPodComponent>(ent, out _))
+            {
+                ent.Comp.NextInjectionTime = Timing.CurTime + ent.Comp.BeakerTransferTime;
+                Dirty(ent);
+            }
         }
         else
         {

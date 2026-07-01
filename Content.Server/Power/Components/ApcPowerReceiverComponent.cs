@@ -99,8 +99,6 @@ namespace Content.Server.Power.Components
             set => NetworkLoad.ReceivingPower = value;
         }
 
-        public float PowerReceived => ReceivingPower;
-
         [ViewVariables]
         public float LastReceivingPower;
 
