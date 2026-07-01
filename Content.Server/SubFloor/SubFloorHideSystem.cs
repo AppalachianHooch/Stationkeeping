@@ -41,6 +41,7 @@ public sealed partial class SubFloorHideSystem : SharedSubFloorHideSystem
         if (_showFloors.Contains(actor.PlayerSession))
         {
             ev.VisibilityMask |= (int)VisibilityFlags.Subfloor;
+            ev.VisibilityMask |= (int)VisibilityFlags.Plenum;
         }
     }
 

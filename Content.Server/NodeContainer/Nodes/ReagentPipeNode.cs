@@ -9,6 +9,15 @@ using Robust.Shared.Utility;
 namespace Content.Server.NodeContainer.Nodes;
 
 /// <summary>
+///     Routing plane; a node only connects to same-plane nodes.
+/// </summary>
+public enum ReagentPipeLayer : byte
+{
+    Plenum,
+    Subfloor,
+}
+
+/// <summary>
 ///     Connects with other <see cref="ReagentPipeNode"/>s whose <see cref="PipeDirection"/>
 ///     correctly corresponds, forming a <see cref="ReagentPipeNet"/> that carries reagents.
 ///     Mirrors <see cref="PipeNode"/> but transports liquids instead of gas.
@@ -21,6 +30,10 @@ public sealed partial class ReagentPipeNode : Node, IRotatableNode
     /// </summary>
     [DataField("pipeDirection")]
     public PipeDirection OriginalPipeDirection;
+
+    // Endpoints (ports, exchangers) keep the default so they join the pipes' plane.
+    [DataField]
+    public ReagentPipeLayer Layer = ReagentPipeLayer.Plenum;
 
     /// <summary>
     ///     The *current* pipe directions (accounting for rotation).
@@ -140,7 +153,8 @@ public sealed partial class ReagentPipeNode : Node, IRotatableNode
                 if (node.Deleting)
                     remQ.Add(node);
 
-                yield return node;
+                if (node.Layer == Layer)
+                    yield return node;
             }
 
             foreach (var node in remQ)
@@ -190,6 +204,7 @@ public sealed partial class ReagentPipeNode : Node, IRotatableNode
             {
                 if (node is ReagentPipeNode pipe
                     && pipe.NodeGroupID == NodeGroupID
+                    && pipe.Layer == Layer
                     && pipe.CurrentPipeDirection.HasDirection(pipeDir.GetOpposite()))
                 {
                     yield return pipe;

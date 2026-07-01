@@ -50,6 +50,15 @@ public abstract partial class SharedTrayScannerSystem : EntitySystem
             Impact = LogImpact.Low
         };
         args.Verbs.Add(verb);
+
+        AlternativeVerb layerVerb = new()
+        {
+            Text = Loc.GetString("tray-scanner-toggle-layer"),
+            Icon = new SpriteSpecifier.Texture(new ResPath("/Textures/Interface/VerbIcons/settings.svg.192dpi.png")),
+            Act = () => ToggleLayer(scanner, user),
+            Impact = LogImpact.Low
+        };
+        args.Verbs.Add(layerVerb);
     }
 
     private static TrayScannerMode Next(TrayScannerMode mode)
@@ -80,21 +89,41 @@ public abstract partial class SharedTrayScannerSystem : EntitySystem
         _audio.PlayPredicted(scanner.Comp.SoundSwitchMode, scanner, userUid, AudioParams.Default.WithVolume(1.5f).WithPitchScale(pitch));
     }
 
-    private void OnUserGetVis(Entity<TrayScannerUserComponent> scanner, ref GetVisMaskEvent args)
+    private void ToggleLayer(Entity<TrayScannerComponent> scanner, EntityUid user)
     {
-        args.VisibilityMask |= (int)VisibilityFlags.Subfloor;
+        // Prevents ping spam
+        if (!_delay.TryResetDelay(scanner, checkDelayed: true))
+            return;
+
+        scanner.Comp.Layer = scanner.Comp.Layer == TrayScannerLayer.Subfloor ? TrayScannerLayer.Plenum : TrayScannerLayer.Subfloor;
+        Dirty(scanner);
+
+        if (TryComp<TrayScannerUserComponent>(user, out var comp))
+        {
+            comp.Layer = LayerFlag(scanner.Comp.Layer);
+            _eye.RefreshVisibilityMask(user);
+        }
+
+        var pitch = scanner.Comp.Layer == TrayScannerLayer.Subfloor ? 1 : 0.8f;
+        _audio.PlayPredicted(scanner.Comp.SoundSwitchMode, scanner, user, AudioParams.Default.WithVolume(1.5f).WithPitchScale(pitch));
     }
 
-    private void OnEquip(EntityUid user)
+    private void OnUserGetVis(Entity<TrayScannerUserComponent> scanner, ref GetVisMaskEvent args)
+    {
+        args.VisibilityMask |= (int)scanner.Comp.Layer;
+    }
+
+    private static VisibilityFlags LayerFlag(TrayScannerLayer layer)
+        => layer == TrayScannerLayer.Plenum ? VisibilityFlags.Plenum : VisibilityFlags.Subfloor;
+
+    private void OnEquip(EntityUid user, TrayScannerComponent scanner)
     {
         if (_netMan.IsClient)
             return;
 
         var comp = EnsureComp<TrayScannerUserComponent>(user);
         comp.Count++;
-
-        if (comp.Count > 1)
-            return;
+        comp.Layer = LayerFlag(scanner.Layer);
 
         _eye.RefreshVisibilityMask(user);
     }
@@ -123,7 +152,7 @@ public abstract partial class SharedTrayScannerSystem : EntitySystem
 
     private void OnTrayHandEquipped(Entity<TrayScannerComponent> ent, ref GotEquippedHandEvent args)
     {
-        OnEquip(args.User);
+        OnEquip(args.User, ent.Comp);
     }
 
     private void OnTrayUnequipped(Entity<TrayScannerComponent> ent, ref GotUnequippedEvent args)
@@ -133,7 +162,7 @@ public abstract partial class SharedTrayScannerSystem : EntitySystem
 
     private void OnTrayEquipped(Entity<TrayScannerComponent> ent, ref GotEquippedEvent args)
     {
-        OnEquip(args.EquipTarget);
+        OnEquip(args.EquipTarget, ent.Comp);
     }
 
     private void OnTrayScannerActivate(Entity<TrayScannerComponent> ent, ref ActivateInWorldEvent args)

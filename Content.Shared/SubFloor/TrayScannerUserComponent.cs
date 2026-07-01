@@ -1,3 +1,5 @@
+using Content.Shared.Eye;
+
 namespace Content.Shared.SubFloor;
 
 // Don't need to network
@@ -12,4 +14,10 @@ public sealed partial class TrayScannerUserComponent : Component
     /// </summary>
     [DataField]
     public int Count;
+
+    /// <summary>
+    /// The plane the held scanner reveals, mirrored here so the vismask handler can read it.
+    /// </summary>
+    [DataField]
+    public VisibilityFlags Layer = VisibilityFlags.Subfloor;
 }

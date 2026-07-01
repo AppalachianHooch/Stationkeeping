@@ -277,6 +277,8 @@
         !type:ReagentPipeNode
         nodeGroupID: CoolantPipe
         pipeDirection: Longitudinal
+  # Passive infrastructure with no hand access, so it hides overhead in the plenum with the pipes.
+  - type: CeilingLayer
   - type: AtmosDevice
   - type: CoolantHeatExchanger
   - type: Construction

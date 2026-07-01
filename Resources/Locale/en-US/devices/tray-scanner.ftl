@@ -3,5 +3,6 @@ tray-scanner-examine-mode-wiring = [color=yellow]Wiring[/color]
 tray-scanner-examine-mode-piping = [color=dodgerblue]Piping[/color]
 
 tray-scanner-switch-mode = Switch mode
+tray-scanner-toggle-layer = Toggle scan layer
 tray-scanner-item-status-label = Mode: {$mode}
     Switch: {$keybinding}
