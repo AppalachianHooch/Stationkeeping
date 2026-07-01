@@ -315,7 +315,12 @@ public sealed class ReagentPipeTest : GameTest
         });
 
         await RunTicksSync(2);
-        await Server.WaitAssertion(() => GetNet(port, "pipe").Reagents.AddReagent(Reagent.Id, FixedPoint2.New(50)));
+        await Server.WaitAssertion(() =>
+        {
+            var net = GetNet(port, "pipe");
+            net.Reagents.AddReagent(Reagent.Id, FixedPoint2.New(50));
+            net.Pressure = 1f; // A line only delivers while pressurized.
+        });
         await RunSeconds(1.5f);
 
         await Server.WaitAssertion(() =>
@@ -324,6 +329,37 @@ public sealed class ReagentPipeTest : GameTest
             Assert.That(sol.TryGetSolution(port, "tank", out _, out var tank), "Output port should have its tank solution.");
             Assert.That(tank!.GetTotalPrototypeQuantity(Reagent), Is.GreaterThan(FixedPoint2.Zero),
                 "An output connector should pull reagents from the net into its tank.");
+        });
+    }
+
+    [Test]
+    public async Task OffRegulatorStopsOutputFlow()
+    {
+        EntityUid input = default, output = default;
+
+        await Server.WaitAssertion(() =>
+        {
+            BuildLine(2, out var grid);
+            input = SEntMan.SpawnEntity("TestReagentPipeInput", grid.ToCoordinates(0, 0));
+            output = SEntMan.SpawnEntity("TestReagentPipeOutput", grid.ToCoordinates(0, 1));
+        });
+
+        await RunTicksSync(2);
+        await Server.WaitAssertion(() =>
+        {
+            SEntMan.System<ReagentPipeConnectorSystem>()
+                .SetPressure((input, SComp<ReagentPipeConnectorComponent>(input)), 0f);
+            GetNet(output, "pipe").Reagents.AddReagent(Reagent.Id, FixedPoint2.New(50));
+        });
+        await RunSeconds(1.5f);
+
+        await Server.WaitAssertion(() =>
+        {
+            Assert.That(GetNet(output, "pipe").Pressure, Is.EqualTo(0f), "An off regulator should hold the line at zero pressure.");
+            var sol = SEntMan.System<SharedSolutionContainerSystem>();
+            Assert.That(sol.TryGetSolution(output, "tank", out _, out var tank), "Output port should have its tank solution.");
+            Assert.That(tank!.GetTotalPrototypeQuantity(Reagent), Is.EqualTo(FixedPoint2.Zero),
+                "A depressurized (off) line should deliver nothing to the output tank.");
         });
     }
 

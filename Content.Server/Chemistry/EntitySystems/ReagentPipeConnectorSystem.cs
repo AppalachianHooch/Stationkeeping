@@ -134,9 +134,9 @@ public sealed partial class ReagentPipeConnectorSystem : EntitySystem
                 if (pressure > 0f)
                     DrainIntoNet(comp.Solution.Value, net, comp.TransferRate * (0.5f + pressure));
             }
-            else
+            else if (net.Pressure > 0f)
             {
-                // Pull from the net into the local tank; TryTransferSolution refreshes the tank's chemistry.
+                // A depressurized line delivers nothing, so "off" stops the whole line.
                 _solution.TryTransferSolution(comp.Solution.Value, net.Reagents, comp.TransferRate);
             }
         }
